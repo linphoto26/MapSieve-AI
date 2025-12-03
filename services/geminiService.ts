@@ -73,7 +73,7 @@ async function retryOperation<T>(
       (typeof message === 'string' && (
         message.includes('Internal error') || 
         message.includes('500') || 
-        message.includes('503') ||
+        message.includes('503') || 
         message.includes('Overloaded') || 
         message.includes('capacity')
       ));
@@ -103,7 +103,7 @@ const JSON_STRUCTURE_PROMPT = `
           "ratingPrediction": number (1-5),
           "priceLevel": "Free" | "$" | "$$" | "$$$" | "$$$$" | "Unknown",
           "tags": ["string"],
-          "locationGuess": "string (Strict format: 'City District' e.g. '台北市 信義區', '京都市 右京區'. MUST use a space to separate City and District/Township. If District is unknown, use '市區')",
+          "locationGuess": "string (Strict format: 'City District' e.g. '台北市 信義區', '京都市 右京區'. DO NOT include Country names like 'Taiwan' or 'Japan'. MUST use a space to separate City and District/Township. If District is unknown, use '市區')",
           "coordinates": { "lat": number, "lng": number },
           "googleMapsUri": "string (LEAVE EMPTY unless you have a GROUNDED Google Maps URL. DO NOT GUESS.)",
           "imageUri": "string (URL of an image representing this place found in the content. Must be a valid image URL ending in .jpg, .png, etc. or null)",
@@ -276,7 +276,7 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
       ${categoryContext}
       
       Strategy:
-      1. Identify the recurring DOM structure (e.g., repeating <div class="place-card"> or <li> items).
+      1. Identify the recurring DOM structure (e.g. repeating <div class="place-card"> or <li> items).
       2. Extract Name, Address (if available), and Description from each item.
       3. **Images & Links**: Look for <img src="..."> and <a href="..."> tags within the place block. Extract them to 'imageUri' and 'websiteUri'.
       4. Look for H1-H6 tags to identify sections and itinerary days.

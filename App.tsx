@@ -224,12 +224,26 @@ const App: React.FC = () => {
   // Helper: Parse "City District" string
   const parseLocation = (loc: string) => {
     if (!loc) return { city: '未分類地區', district: '其他' };
-    const parts = loc.split(' ');
-    // Handle cases where there is no space or only one word
-    if (parts.length === 1) return { city: parts[0], district: '市區' };
-    const city = parts[0];
-    const district = parts.slice(1).join(' ');
-    return { city, district };
+    
+    // 1. Remove common Country prefixes using Regex
+    let cleaned = loc.replace(/^(台灣|臺灣|日本|南韓|韓國|泰國|越南)\s*/, '').trim();
+    if (!cleaned) return { city: '未分類地區', district: '其他' };
+
+    // 2. Try splitting by space first
+    const parts = cleaned.split(/\s+/);
+    if (parts.length >= 2) {
+        return { city: parts[0], district: parts.slice(1).join(' ') };
+    }
+
+    // 3. Fallback: Regex for splitting "CityDistrict" (e.g. 台北市信義區)
+    // Matches City (at least 2 chars ending in [市縣都府]) and District (remainder)
+    const cityMatch = cleaned.match(/^(.{2,}[市縣都府])(.+)$/);
+    if (cityMatch) {
+        return { city: cityMatch[1], district: cityMatch[2] };
+    }
+
+    // 4. Fallback: Just City, no district known
+    return { city: cleaned, district: '市區' };
   };
 
   // Derived state for unique Cities (Major Categories)
@@ -530,7 +544,7 @@ const App: React.FC = () => {
       {/* Main Window Container */}
       <div className={`
         mac-window w-full max-w-7xl rounded-[20px] flex flex-col overflow-hidden transition-all duration-500 ease-out shadow-mac-window
-        ${result ? 'h-[90vh]' : 'h-auto max-w-3xl'}
+        h-[90vh]
       `}>
         
         {/* Title Bar / Toolbar */}
@@ -613,82 +627,6 @@ const App: React.FC = () => {
 
         {/* Content Area */}
         <div className="flex-grow overflow-y-auto overflow-x-hidden bg-white/30 relative">
-          
-          {!result ? (
-            // LANDING VIEW
-            <div className="flex flex-col items-center justify-center h-full py-12 px-8">
-              <div className="w-20 h-20 bg-gradient-to-br from-systemBlue to-systemTeal rounded-[22px] shadow-lg flex items-center justify-center mb-8">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                </svg>
-              </div>
-              
-              <h2 className="text-3xl font-bold text-gray-800 mb-3 text-center">
-                智能行程整理
-              </h2>
-              <p className="text-gray-500 text-center max-w-md mb-8 leading-relaxed">
-                將 Google Maps 連結、部落格文章、HTML 原始碼或**圖片**貼上，AI 將自動為您分類並建立精美的視覺化清單。
-              </p>
-
-              <div className="w-full max-w-2xl relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-blue-400 to-purple-400 rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-1000"></div>
-                <div className="relative bg-white/80 backdrop-blur-xl rounded-xl border border-white/50 shadow-xl p-1">
-                   {isUrlInput(rawInput) && (
-                    <div className="px-4 py-2 bg-systemBlue/10 text-systemBlue text-xs font-medium rounded-t-lg border-b border-systemBlue/10 flex items-center">
-                       <span className="mr-2">💡</span> 若 AI 無法讀取，請貼上網頁原始碼。
-                    </div>
-                  )}
-                  <textarea
-                    className="w-full h-40 p-4 text-base text-gray-800 placeholder-gray-400 bg-transparent border-none resize-none focus:ring-0 rounded-lg"
-                    placeholder="在此貼上連結或文字，或者上傳圖片..."
-                    value={rawInput}
-                    onChange={(e) => setRawInput(e.target.value)}
-                  />
-                  <div className="flex justify-between items-center px-4 pb-3 pt-2">
-                    <div className="flex items-center gap-2">
-                        <button 
-                            onClick={() => fileInputRef.current?.click()}
-                            className="text-xs text-gray-500 hover:text-systemBlue flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-black/5"
-                            title="上傳圖片分析"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            圖片分析
-                        </button>
-                        <input 
-                            type="file" 
-                            ref={fileInputRef} 
-                            className="hidden" 
-                            accept="image/*"
-                            onChange={handleImageUpload}
-                        />
-                    </div>
-                    <button
-                      onClick={handleAnalyze}
-                      disabled={isLoading || !rawInput.trim()}
-                      className={`
-                        px-6 py-2 rounded-lg text-sm font-semibold text-white shadow-md transition-all active:scale-95
-                        ${isLoading || !rawInput.trim() 
-                          ? 'bg-gray-300 cursor-not-allowed' 
-                          : 'bg-gradient-to-r from-systemBlue to-blue-600 hover:shadow-lg'
-                        }
-                      `}
-                    >
-                      {isLoading ? '分析中...' : '開始分析'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-              
-              {error && (
-                <div className="mt-6 px-4 py-3 bg-systemRed/10 border border-systemRed/20 text-systemRed rounded-lg text-sm max-w-md text-center">
-                  {error}
-                </div>
-              )}
-            </div>
-          ) : (
-            // DASHBOARD VIEW
             <div className="flex h-full">
               {/* Sidebar / Filter Panel */}
               <div className="w-64 bg-white/40 backdrop-blur-md border-r border-black/5 flex-shrink-0 hidden md:flex flex-col p-4">
@@ -738,70 +676,79 @@ const App: React.FC = () => {
                 )}
 
                 <div className="flex-grow overflow-y-auto pr-1 custom-scrollbar">
-                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-2">
-                    {viewMode === 'CATEGORY' ? '類別篩選' : '縣市篩選'}
-                  </h3>
-                  
-                  <nav className="space-y-1">
-                    {/* Render Category List */}
-                    {viewMode === 'CATEGORY' && (
-                        <>
-                            <button
-                            onClick={() => setActiveCategory('ALL')}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${activeCategory === 'ALL' ? 'bg-systemBlue text-white shadow-md font-medium' : 'text-gray-600 hover:bg-black/5'}`}
-                            >
-                            全部類別
-                            </button>
-                            {Object.values(CategoryType).map(cat => {
-                            const isActive = activeCategory === cat;
-                            return (
-                                <button
-                                key={cat}
-                                onClick={() => setActiveCategory(cat)}
-                                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center justify-between group ${isActive ? 'bg-white text-gray-800 font-medium shadow-sm ring-1 ring-black/5' : 'text-gray-600 hover:bg-black/5'}`}
-                                >
-                                <span>{categoryLabels[cat]}</span>
-                                {isActive && <div className="w-1.5 h-1.5 rounded-full bg-systemBlue"></div>}
-                                </button>
-                            );
-                            })}
-                        </>
-                    )}
-
-                    {/* Render City List (Level 1 Location) */}
-                    {viewMode === 'LOCATION' && (
-                        <>
-                            <button
-                                onClick={() => { setActiveLocation('ALL'); setActiveDistrict('ALL'); }}
-                                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${activeLocation === 'ALL' ? 'bg-systemBlue text-white shadow-md font-medium' : 'text-gray-600 hover:bg-black/5'}`}
-                            >
-                                全部縣市
-                            </button>
-                            {uniqueCities.map(city => {
-                                const isActive = activeLocation === city;
-                                return (
+                  {result ? (
+                      <>
+                        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-2">
+                            {viewMode === 'CATEGORY' ? '類別篩選' : '縣市篩選'}
+                        </h3>
+                        <nav className="space-y-1">
+                            {/* Render Category List */}
+                            {viewMode === 'CATEGORY' && (
+                                <>
                                     <button
-                                        key={city}
-                                        onClick={() => { setActiveLocation(city); setActiveDistrict('ALL'); }}
-                                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center justify-between group ${isActive ? 'bg-white text-gray-800 font-medium shadow-sm ring-1 ring-black/5' : 'text-gray-600 hover:bg-black/5'}`}
+                                    onClick={() => setActiveCategory('ALL')}
+                                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${activeCategory === 'ALL' ? 'bg-systemBlue text-white shadow-md font-medium' : 'text-gray-600 hover:bg-black/5'}`}
                                     >
-                                        <span className="truncate">{city}</span>
-                                        {isActive && <div className="w-1.5 h-1.5 rounded-full bg-systemBlue shrink-0"></div>}
+                                    全部類別
                                     </button>
-                                );
-                            })}
-                        </>
-                    )}
-                  </nav>
+                                    {Object.values(CategoryType).map(cat => {
+                                    const isActive = activeCategory === cat;
+                                    return (
+                                        <button
+                                        key={cat}
+                                        onClick={() => setActiveCategory(cat)}
+                                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center justify-between group ${isActive ? 'bg-white text-gray-800 font-medium shadow-sm ring-1 ring-black/5' : 'text-gray-600 hover:bg-black/5'}`}
+                                        >
+                                        <span>{categoryLabels[cat]}</span>
+                                        {isActive && <div className="w-1.5 h-1.5 rounded-full bg-systemBlue"></div>}
+                                        </button>
+                                    );
+                                    })}
+                                </>
+                            )}
+
+                            {/* Render City List (Level 1 Location) */}
+                            {viewMode === 'LOCATION' && (
+                                <>
+                                    <button
+                                        onClick={() => { setActiveLocation('ALL'); setActiveDistrict('ALL'); }}
+                                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${activeLocation === 'ALL' ? 'bg-systemBlue text-white shadow-md font-medium' : 'text-gray-600 hover:bg-black/5'}`}
+                                    >
+                                        全部縣市
+                                    </button>
+                                    {uniqueCities.map(city => {
+                                        const isActive = activeLocation === city;
+                                        return (
+                                            <button
+                                                key={city}
+                                                onClick={() => { setActiveLocation(city); setActiveDistrict('ALL'); }}
+                                                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center justify-between group ${isActive ? 'bg-white text-gray-800 font-medium shadow-sm ring-1 ring-black/5' : 'text-gray-600 hover:bg-black/5'}`}
+                                            >
+                                                <span className="truncate">{city}</span>
+                                                {isActive && <div className="w-1.5 h-1.5 rounded-full bg-systemBlue shrink-0"></div>}
+                                            </button>
+                                        );
+                                    })}
+                                </>
+                            )}
+                        </nav>
+                      </>
+                  ) : (
+                      <div className="flex flex-col items-center justify-center h-40 text-gray-400 text-xs text-center px-4">
+                          <p>尚無資料</p>
+                          <p className="mt-1">請在右側輸入內容開始分析</p>
+                      </div>
+                  )}
                 </div>
 
                  <div className="mt-auto pt-4 border-t border-black/5 shrink-0">
                    <div className="flex items-center justify-between text-xs text-gray-500 px-2">
-                     <span>{placesToShow.length} 個地點</span>
+                     <span>{result ? placesToShow.length : 0} 個地點</span>
                      <select 
                        value={sortBy}
                        onChange={(e) => setSortBy(e.target.value as any)}
                        className="bg-transparent border-none text-xs p-0 text-systemBlue font-medium focus:ring-0 cursor-pointer"
+                       disabled={!result}
                      >
                        <option value="DEFAULT">預設</option>
                        <option value="PRICE_ASC">價格</option>
@@ -816,8 +763,100 @@ const App: React.FC = () => {
               {/* Main Grid Area */}
               <div className="flex-grow overflow-y-auto p-6 relative">
                 
+                {/* Empty State / Input Form - DASHBOARD STYLE */}
+                {!result && (
+                  <div className="w-full max-w-3xl mx-auto animate-fade-in-up">
+                    <div className="bg-white/60 backdrop-blur-md border border-white/50 shadow-mac-card rounded-2xl p-6 mb-8">
+                       <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+                           <span className="bg-systemBlue/10 text-systemBlue p-1.5 rounded-lg">
+                               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                           </span>
+                           建立新行程
+                       </h2>
+                       <p className="text-sm text-gray-500 mb-4">
+                           貼上 Google Maps 連結、部落格文章網址，或直接上傳截圖，AI 將為您自動整理。
+                       </p>
+
+                       <div className="relative group">
+                           <textarea
+                               className="w-full h-32 p-4 text-sm text-gray-800 placeholder-gray-400 bg-white/50 border border-gray-200 focus:border-systemBlue/50 focus:ring-2 focus:ring-systemBlue/20 rounded-xl resize-none transition-all"
+                               placeholder="在此貼上連結或文字..."
+                               value={rawInput}
+                               onChange={(e) => setRawInput(e.target.value)}
+                           />
+                           
+                           <div className="flex justify-between items-center mt-3">
+                               <div className="flex items-center gap-2">
+                                   <button 
+                                       onClick={() => fileInputRef.current?.click()}
+                                       className="text-xs font-medium text-gray-600 hover:text-systemBlue bg-white border border-gray-200 hover:border-systemBlue/30 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-sm"
+                                   >
+                                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                       上傳圖片
+                                   </button>
+                                   <input 
+                                       type="file" 
+                                       ref={fileInputRef} 
+                                       className="hidden" 
+                                       accept="image/*"
+                                       onChange={handleImageUpload}
+                                   />
+                               </div>
+                               <button
+                                   onClick={handleAnalyze}
+                                   disabled={isLoading || !rawInput.trim()}
+                                   className={`
+                                       px-5 py-2 rounded-lg text-sm font-semibold text-white shadow-md transition-all active:scale-95 flex items-center gap-2
+                                       ${isLoading || !rawInput.trim() 
+                                       ? 'bg-gray-300 cursor-not-allowed' 
+                                       : 'bg-systemBlue hover:bg-blue-600'
+                                       }
+                                   `}
+                               >
+                                   {isLoading ? (
+                                       <>
+                                           <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                           分析中...
+                                       </>
+                                   ) : (
+                                       <>開始分析</>
+                                   )}
+                               </button>
+                           </div>
+                       </div>
+                       
+                        {error && (
+                            <div className="mt-4 px-4 py-3 bg-red-50 border border-red-100 text-red-600 rounded-lg text-sm flex items-start gap-2">
+                                <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                <span>{error}</span>
+                            </div>
+                        )}
+                    </div>
+                    
+                    {/* Placeholder for Recent Items or Tips could go here */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 opacity-60">
+                         <div className="bg-white/40 p-4 rounded-xl border border-white/40">
+                             <div className="text-xl mb-2">🔗</div>
+                             <h4 className="font-bold text-gray-700 text-sm">貼上網址</h4>
+                             <p className="text-xs text-gray-500 mt-1">支援 Google Maps 清單、旅遊部落格文章。</p>
+                         </div>
+                         <div className="bg-white/40 p-4 rounded-xl border border-white/40">
+                             <div className="text-xl mb-2">📸</div>
+                             <h4 className="font-bold text-gray-700 text-sm">圖片辨識</h4>
+                             <p className="text-xs text-gray-500 mt-1">拍下菜單、行程表或書本內容直接分析。</p>
+                         </div>
+                         <div className="bg-white/40 p-4 rounded-xl border border-white/40">
+                             <div className="text-xl mb-2">🤖</div>
+                             <h4 className="font-bold text-gray-700 text-sm">AI 顧問</h4>
+                             <p className="text-xs text-gray-500 mt-1">分析完成後，可與 AI 對話詢問建議。</p>
+                         </div>
+                    </div>
+                  </div>
+                )}
+
+
                 {/* Secondary Navigation for District (Level 2) - Sticky Header */}
-                {viewMode === 'LOCATION' && activeLocation !== 'ALL' && availableDistricts.length > 0 && (
+                {viewMode === 'LOCATION' && activeLocation !== 'ALL' && availableDistricts.length > 0 && result && (
                      <div className="sticky top-0 z-20 -mx-6 px-6 pb-4 bg-white/0 backdrop-blur-none">
                          <div className="flex overflow-x-auto gap-2 py-2 hide-scrollbar mask-gradient-right">
                              <button 
@@ -841,7 +880,7 @@ const App: React.FC = () => {
 
 
                 {/* Summary Widget */}
-                {viewMode === 'CATEGORY' && (
+                {result && viewMode === 'CATEGORY' && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                   <div className="col-span-1 lg:col-span-2 bg-white/60 backdrop-blur-sm p-5 rounded-2xl border border-white/50 shadow-mac-card">
                     <h3 className="text-sm font-bold text-gray-800 mb-2 flex items-center">
@@ -898,6 +937,7 @@ const App: React.FC = () => {
                 </div>
 
                 {/* Map Toggle */}
+                {result && (
                 <div className="mb-6 flex justify-end">
                   <button
                     onClick={() => setShowMap(!showMap)}
@@ -912,15 +952,16 @@ const App: React.FC = () => {
                     {showMap ? '隱藏地圖' : '顯示地圖'}
                   </button>
                 </div>
+                )}
 
-                {showMap && (
+                {showMap && result && (
                   <div className="mb-8 animate-fade-in">
                     <MapView places={placesToShow} onSelectPlace={setSelectedPlaceId} />
                   </div>
                 )}
 
                 {/* Grid */}
-                {placesToShow.length > 0 ? (
+                {result && placesToShow.length > 0 ? (
                   <>
                     {/* IF groupedPlaces is available (for Location view hierarchy), use it */}
                     {groupedPlaces ? (
@@ -966,15 +1007,14 @@ const App: React.FC = () => {
                         </div>
                     )}
                   </>
-                ) : (
+                ) : result ? (
                    <div className="flex flex-col items-center justify-center py-20 text-gray-400">
                       <svg className="w-12 h-12 mb-3 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                       <p>找不到符合的地點</p>
                    </div>
-                )}
+                ) : null}
               </div>
             </div>
-          )}
         </div>
 
         {/* Footer Status Bar */}
