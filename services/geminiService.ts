@@ -93,13 +93,13 @@ const JSON_STRUCTURE_PROMPT = `
     Structure:
     {
       "summary": "string (One sentence summary in Traditional Chinese)",
-      "suggestedItinerary": "string (Optional daily route plan)",
+      "suggestedItinerary": "string (Optional daily route plan extracted from the text)",
       "places": [
         {
-          "name": "string",
+          "name": "string (Full specific name, e.g. 'Starbucks Shibuya Tsutaya' not just 'Starbucks')",
           "category": "FOOD" | "DRINK" | "SIGHTSEEING" | "SHOPPING" | "ACTIVITY" | "LODGING" | "OTHER",
           "subCategory": "string (e.g. 拉麵店)",
-          "description": "string (Traditional Chinese)",
+          "description": "string (Traditional Chinese summary of why it is recommended)",
           "ratingPrediction": number (1-5),
           "priceLevel": "Free" | "$" | "$$" | "$$$" | "$$$$" | "Unknown",
           "tags": ["string"],
@@ -227,22 +227,26 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
   let prompt = "";
   let tools: any[] = [{ googleMaps: {} }]; // Default to using Maps Grounding
 
-  // --- MODE 1: URL Handling ---
+  // --- MODE 1: URL Handling (Enhanced Accuracy) ---
   if (isUrl) {
-    // Note: googleMaps and googleSearch tools cannot be used together in the same request easily 
-    // without complex routing. For URL reading, we prioritize Search Grounding, 
-    // but we ask it to format strictly.
     tools = [{ googleSearch: {} }]; 
     
     prompt = `
-      You are an advanced travel content extractor.
+      You are an EXPERT Travel Data Engineer and Web Scraper.
       The user provided a URL: "${rawText}".
       ${categoryContext}
       
-      EXECUTION STRATEGY:
-      1. **Search & Read**: Use Google Search to find the content of the URL.
-      2. **Extraction**: Extract places and itinerary ("Day 1", "Day 2").
-      3. **Detailing**: For every place found, try to infer its likely coordinates and details.
+      Your Goal: Extract a COMPLETE and PRECISE list of places mentioned in the main content of this page.
+      
+      CRITICAL INSTRUCTIONS FOR ACCURACY:
+      1. **Exhaustive Extraction**: If the article says "Top 10 Cafes", you MUST find and extract all 10 items. Do not stop at the first few.
+      2. **Structure Recognition**: Look for HTML patterns like <h2>, <h3>, or numbered lists (1., 2.) in the search results to identify distinct places.
+      3. **Noise Filtering**: DIFFERENTIATE between the *subject* of the article (the recommended places) and *noise* (sidebar ads, "You might also like", footer links). Only extract places that are part of the main itinerary or review list.
+      4. **Disambiguation**: 
+         - If the text says "Starbucks", look for context to find *which* Starbucks (e.g., "Starbucks Ninenzaka").
+         - If the text says "The temple", find the actual name (e.g., "Kiyomizu-dera").
+      5. **Itinerary Parsing**: If the page is a travel log (Day 1, Day 2), capture the flow in the "suggestedItinerary" field, and extract each stop as a Place.
+      6. **Location Anchoring**: Use the context of the article (e.g., "Trip to Kyoto") to fill in the 'locationGuess' for every item accurately.
       
       ${JSON_STRUCTURE_PROMPT}
       Output in Traditional Chinese (zh-TW).
@@ -251,13 +255,16 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
   
   // --- MODE 2: HTML Source Code ---
   else if (isHtml) {
-    // HTML mode doesn't strictly need Search, but Maps grounding can verify the extracted names.
     prompt = `
-      Parse this HTML to extract places and itinerary.
+      You are an HTML Parser for Travel Data.
+      Parse this HTML source code to extract places and itinerary.
       HTML Input: "${trimmedInput.substring(0, 30000)}"
       ${categoryContext}
       
-      After extracting names from HTML, use your internal knowledge to fill in details.
+      Strategy:
+      1. Identify the recurring DOM structure (e.g., repeating <div class="place-card"> or <li> items).
+      2. Extract Name, Address (if available), and Description from each item.
+      3. Ignore navigation menus, footers, and comment sections.
       
       ${JSON_STRUCTURE_PROMPT}
       Output in Traditional Chinese (zh-TW).
@@ -267,12 +274,12 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
   // --- MODE 3: Plain Text (Standard) ---
   else {
     prompt = `
-      Analyze this text to extract places.
+      Analyze this text input to extract travel places.
       Input: "${trimmedInput}"
       ${categoryContext}
 
       Use the Google Maps tool to VERIFY these places.
-      - If a place exists on Google Maps, use its EXACT coordinates, correct name.
+      - If a place exists on Google Maps, use its EXACT coordinates, correct official name.
       - DO NOT invent a googleMapsUri unless the tool explicitly provides a deep link.
       
       ${JSON_STRUCTURE_PROMPT}
@@ -300,11 +307,6 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
     // Post-process to attach IDs and verification status
     parsed.places = parsed.places.map((p, idx) => {
       // STRICT VERIFICATION LOGIC:
-      // 1. If we have grounding metadata, check if any chunk matches this place.
-      // 2. If the JSON has a URI but it doesn't match a grounding source, it's likely a hallucination.
-      // 3. For reliability, we mostly rely on constructing a high-quality search query on the frontend
-      //    unless we are 100% sure we have a valid map link from the tool.
-      
       let uri = p.googleMapsUri;
       let isVerified = false;
 
@@ -336,7 +338,6 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
       }
 
       // If we still don't have a verified URI from tools, we clear it to force the frontend to use the smart search query.
-      // This prevents broken hallucinated links.
       if (!isVerified) {
         uri = undefined; 
       }
@@ -356,7 +357,6 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
     console.error("Analysis error:", e);
     if (e.message && e.message.includes("JSON")) throw new Error("AI 分析結果格式錯誤，請重試。");
     if (e.message && e.message.includes("SAFETY")) throw new Error("內容涉及安全限制，無法分析。");
-    // status 500 should be caught by retryOperation, but if it bubbles up after retries:
     if (e.status === 500 || e?.error?.code === 500) throw new Error("伺服器繁忙 (500)，請稍後再試。");
     throw new Error("分析失敗，請檢查輸入內容或網路連線。");
   }
