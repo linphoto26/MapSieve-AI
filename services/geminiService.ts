@@ -1,5 +1,5 @@
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import { AnalysisResult, CategoryType } from "../types";
+import { GoogleGenAI, GenerateContentResponse, Chat } from "@google/genai";
+import { AnalysisResult, CategoryType, Place } from "../types";
 
 // Initialize with a fallback to avoid crash on load if key is missing.
 // We allow setting the key dynamically via localStorage or input.
@@ -110,6 +110,44 @@ const JSON_STRUCTURE_PROMPT = `
       ]
     }
 `;
+
+/**
+ * Creates a chat session contextualized with the current itinerary.
+ */
+export const createChatSession = (places: Place[]): Chat => {
+    const client = getAiClient();
+    
+    const simplifiedPlaces = places.map(p => ({
+        name: p.name,
+        category: p.category,
+        subCategory: p.subCategory,
+        location: p.locationGuess,
+        desc: p.description,
+        rating: p.ratingPrediction,
+        price: p.priceLevel
+    }));
+
+    const systemInstruction = `
+        You are a helpful travel consultant for the "MapSieve AI" app.
+        The user has an active itinerary with ${places.length} places.
+        
+        Here is the JSON data of the current places:
+        ${JSON.stringify(simplifiedPlaces)}
+        
+        Your Goal:
+        1. Answer questions about these specific places (e.g., "Which one is best for kids?", "How to arrange route for Kyoto places?").
+        2. Suggest logical routes or grouping based on the 'location' field.
+        3. Be concise, friendly, and use Traditional Chinese (zh-TW).
+        4. Do not make up facts about places not in the list unless asked for general travel advice in that area.
+    `;
+
+    return client.chats.create({
+        model: 'gemini-2.5-flash',
+        config: {
+            systemInstruction: systemInstruction,
+        }
+    });
+};
 
 /**
  * Analyze an image using gemini-3-pro-preview with fallback to 2.5-flash

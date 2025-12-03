@@ -3,7 +3,9 @@ import { analyzeMapData, analyzeImage, hasApiKey, setApiKey } from './services/g
 import { AnalysisResult, CategoryType, Place, UserProfile } from './types';
 import PlaceCard from './components/PlaceCard';
 import MapView from './components/MapView';
+import ChatWidget from './components/ChatWidget';
 import { initializeFirebase, loginWithGoogle, logout, onUserChange, saveUserData, subscribeToUserData, isFirebaseInitialized, DEFAULT_FIREBASE_CONFIG } from './services/firebaseService';
+import { generateCSV, generateKML, downloadFile } from './services/exportService';
 
 const App: React.FC = () => {
   const [rawInput, setRawInput] = useState<string>('');
@@ -46,6 +48,9 @@ const App: React.FC = () => {
   // API Key Modal State
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
+
+  // Export State
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
 
   // Ref for file input
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -386,6 +391,20 @@ const App: React.FC = () => {
     setSearchQuery('');
   };
 
+  const handleExportKML = () => {
+    if (!result) return;
+    const kml = generateKML(result);
+    downloadFile(`mapsieve-export-${Date.now()}.kml`, kml, 'application/vnd.google-earth.kml+xml');
+    setIsExportMenuOpen(false);
+  };
+
+  const handleExportCSV = () => {
+    if (!result) return;
+    const csv = generateCSV(result);
+    downloadFile(`mapsieve-export-${Date.now()}.csv`, csv, 'text/csv;charset=utf-8;');
+    setIsExportMenuOpen(false);
+  };
+
   const isFilterActive = activeCategory !== 'ALL' || 
                          activeLocation !== 'ALL' || 
                          activeDistrict !== 'ALL' || 
@@ -517,6 +536,32 @@ const App: React.FC = () => {
 
             {result && (
               <>
+                {/* Export Dropdown */}
+                <div className="relative">
+                  <button 
+                    onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+                    className="p-1.5 text-gray-500 hover:text-systemBlue hover:bg-black/5 rounded-md transition-all"
+                    title="匯出行程"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                  </button>
+                  {isExportMenuOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-40 bg-white/95 backdrop-blur-xl border border-gray-200 rounded-lg shadow-xl py-1 z-50 animate-fade-in">
+                       <button onClick={handleExportKML} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-systemBlue hover:text-white flex items-center gap-2">
+                          <span className="text-xs font-bold bg-blue-100 text-blue-700 px-1 rounded">KML</span> Google Maps
+                       </button>
+                       <button onClick={handleExportCSV} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-systemGreen hover:text-white flex items-center gap-2">
+                          <span className="text-xs font-bold bg-green-100 text-green-700 px-1 rounded">CSV</span> Excel/Notion
+                       </button>
+                    </div>
+                  )}
+                  {isExportMenuOpen && <div className="fixed inset-0 z-40" onClick={() => setIsExportMenuOpen(false)}></div>}
+                </div>
+
+                <div className="h-4 w-[1px] bg-black/10 mx-1"></div>
+
                 <button 
                   onClick={() => setIsAddModalOpen(true)}
                   className="px-3 py-1 bg-white/80 hover:bg-white border border-black/10 rounded-md text-xs font-medium text-gray-700 shadow-sm transition-all active:scale-95 flex items-center gap-1.5"
@@ -912,6 +957,9 @@ const App: React.FC = () => {
           <span>© 2025 MapSieve</span>
         </div>
       </div>
+
+      {/* AI Chat Widget */}
+      {result && <ChatWidget places={result.places} />}
 
       {/* API Key Modal (Shown on mount if missing) */}
       {isApiKeyModalOpen && (
