@@ -1,0 +1,5 @@
+{
+  "name": "MapSieve AI",
+  "description": "一個使用 AI 智能整理、分類和排序 Google 地圖清單與旅遊筆記的工具。",
+  "requestFramePermissions": []
+}
