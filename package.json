@@ -8,7 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^0.1.2",
+    "@google/genai": "*",
     "firebase": "^10.12.0",
     "leaflet": "^1.9.4",
     "react": "^18.3.1",
