@@ -232,21 +232,23 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
     tools = [{ googleSearch: {} }]; 
     
     prompt = `
-      You are an EXPERT Travel Data Engineer and Web Scraper.
+      You are an EXPERT Web Scraper, HTML Parser, and Travel Data Analyst.
       The user provided a URL: "${rawText}".
       ${categoryContext}
       
-      Your Goal: Extract a COMPLETE and PRECISE list of places mentioned in the main content of this page.
+      Your Goal: DEEPLY PARSE and EXTRACT ALL content from this page to build a comprehensive travel itinerary.
       
-      CRITICAL INSTRUCTIONS FOR ACCURACY:
-      1. **Exhaustive Extraction**: If the article says "Top 10 Cafes", you MUST find and extract all 10 items. Do not stop at the first few.
-      2. **Structure Recognition**: Look for HTML patterns like <h2>, <h3>, or numbered lists (1., 2.) in the search results to identify distinct places.
-      3. **Noise Filtering**: DIFFERENTIATE between the *subject* of the article (the recommended places) and *noise* (sidebar ads, "You might also like", footer links). Only extract places that are part of the main itinerary or review list.
-      4. **Disambiguation**: 
-         - If the text says "Starbucks", look for context to find *which* Starbucks (e.g., "Starbucks Ninenzaka").
-         - If the text says "The temple", find the actual name (e.g., "Kiyomizu-dera").
-      5. **Itinerary Parsing**: If the page is a travel log (Day 1, Day 2), capture the flow in the "suggestedItinerary" field, and extract each stop as a Place.
-      6. **Location Anchoring**: Use the context of the article (e.g., "Trip to Kyoto") to fill in the 'locationGuess' for every item accurately.
+      *** EXECUTION INSTRUCTIONS ***
+      1. **READ EVERYTHING**: Scan the MAIN TITLE, ALL PARAGRAPHS, ALL H1-H4 HEADERS, and LISTS (ul/ol).
+      2. **UNFOLD CONTENT**: Assume any "Read More", "Show All", or accordion sections are EXPANDED. Read their content.
+      3. **EXHAUSTIVE EXTRACTION**: Extract EVERY single place/spot mentioned. Do not stop at "Top 5" if the article mentions 20.
+      4. **LINK & IMAGE ANALYSIS**: Use Image Alt Text and Hyperlinks found in the page to verify place names and gain context.
+      5. **IGNORE NOISE**: Filter out sidebar ads, footer links, and "You might also like" recommendations. Only extract the MAIN CONTENT.
+      
+      *** MAPPING STRATEGY ***
+      - **places**: Identify every distinct location mentioned in the headers (H2/H3) or lists.
+      - **summary**: Summarize the article's main topic (based on the Main Title and Intro).
+      - **suggestedItinerary**: If the text contains headers like "Day 1", "Morning", "Route A", extract that full chronological structure into this field.
       
       ${JSON_STRUCTURE_PROMPT}
       Output in Traditional Chinese (zh-TW).
@@ -264,7 +266,8 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
       Strategy:
       1. Identify the recurring DOM structure (e.g., repeating <div class="place-card"> or <li> items).
       2. Extract Name, Address (if available), and Description from each item.
-      3. Ignore navigation menus, footers, and comment sections.
+      3. Look for H1-H6 tags to identify sections and itinerary days.
+      4. Ignore navigation menus, footers, and comment sections.
       
       ${JSON_STRUCTURE_PROMPT}
       Output in Traditional Chinese (zh-TW).
