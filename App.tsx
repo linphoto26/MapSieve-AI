@@ -743,77 +743,95 @@ const App: React.FC = () => {
             {/* Main Content Area */}
             <div className="flex-grow overflow-y-auto overflow-x-hidden bg-white/30 relative p-6">
             {!result ? (
-                // EMPTY STATE (INPUT FORM)
-                <div className="flex flex-col items-center justify-center min-h-full py-8 px-4">
-                    <div className="w-16 h-16 bg-gradient-to-br from-systemBlue to-systemTeal rounded-[18px] shadow-lg flex items-center justify-center mb-6">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                        </svg>
-                    </div>
-                    
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center">
-                        開始整理您的行程
-                    </h2>
-                    <p className="text-gray-500 text-center max-w-md mb-8 text-sm leading-relaxed">
-                        將 Google Maps 連結、部落格文章或圖片貼上，AI 將自動為您建立視覺化清單。
-                    </p>
-
-                    <div className="w-full max-w-xl relative group">
-                        <div className="absolute -inset-1 bg-gradient-to-r from-blue-400 to-purple-400 rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-1000"></div>
-                        <div className="relative bg-white/80 backdrop-blur-xl rounded-xl border border-white/50 shadow-xl p-1">
-                        {isUrlInput(rawInput) && (
-                            <div className="px-4 py-2 bg-systemBlue/10 text-systemBlue text-xs font-medium rounded-t-lg border-b border-systemBlue/10 flex items-center">
-                            <span className="mr-2">💡</span> 若 AI 無法讀取，請貼上網頁原始碼。
-                            </div>
-                        )}
-                        <textarea
-                            className="w-full h-32 p-4 text-sm text-gray-800 placeholder-gray-400 bg-transparent border-none resize-none focus:ring-0 rounded-lg"
-                            placeholder="在此貼上連結或文字，或者上傳圖片..."
-                            value={rawInput}
-                            onChange={(e) => setRawInput(e.target.value)}
-                        />
-                        <div className="flex justify-between items-center px-4 pb-3 pt-2 border-t border-gray-100/50">
-                            <div className="flex items-center gap-2">
-                                <button 
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="text-xs text-gray-500 hover:text-systemBlue flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-black/5"
-                                    title="上傳圖片分析"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                    圖片分析
-                                </button>
-                                <input 
-                                    type="file" 
-                                    ref={fileInputRef} 
-                                    className="hidden" 
-                                    accept="image/*"
-                                    onChange={handleImageUpload}
+                // EMPTY STATE (DASHBOARD WORKSPACE STYLE)
+                <div className="flex flex-col items-center justify-start min-h-full py-8 px-4">
+                    <div className="w-full max-w-4xl">
+                        <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-white/50 shadow-mac-card p-6">
+                            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                <span className="bg-systemBlue/10 p-1.5 rounded text-systemBlue">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                                </span>
+                                新增行程分析
+                            </h2>
+                            
+                            <div className="relative group">
+                                <textarea
+                                    className="w-full h-32 p-4 text-sm text-gray-800 placeholder-gray-400 bg-gray-50/50 border border-gray-200 rounded-xl resize-none focus:ring-2 focus:ring-systemBlue/50 focus:bg-white transition-all"
+                                    placeholder="在此貼上 Google Maps 連結、部落格文章內容，或直接輸入文字..."
+                                    value={rawInput}
+                                    onChange={(e) => setRawInput(e.target.value)}
                                 />
+                                {isUrlInput(rawInput) && (
+                                    <div className="absolute top-2 right-2 px-2 py-1 bg-blue-50 text-blue-600 text-[10px] font-medium rounded border border-blue-100 flex items-center gap-1">
+                                        <span>🌐</span> URL 偵測
+                                    </div>
+                                )}
                             </div>
-                            <button
-                            onClick={handleAnalyze}
-                            disabled={isLoading || !rawInput.trim()}
-                            className={`
-                                px-6 py-2 rounded-lg text-sm font-semibold text-white shadow-md transition-all active:scale-95
-                                ${isLoading || !rawInput.trim() 
-                                ? 'bg-gray-300 cursor-not-allowed' 
-                                : 'bg-gradient-to-r from-systemBlue to-blue-600 hover:shadow-lg'
-                                }
-                            `}
-                            >
-                            {isLoading ? '分析中...' : '開始分析'}
-                            </button>
+                            
+                            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4">
+                                <div className="flex items-center gap-3 w-full sm:w-auto">
+                                    <button 
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="flex-1 sm:flex-none text-xs text-gray-600 hover:text-systemBlue hover:bg-systemBlue/5 border border-gray-200 hover:border-systemBlue/30 px-3 py-2 rounded-lg transition-all flex items-center justify-center gap-2 group"
+                                    >
+                                        <div className="p-1 bg-gray-100 group-hover:bg-blue-100 rounded text-gray-500 group-hover:text-blue-600">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                        </div>
+                                        上傳圖片分析
+                                    </button>
+                                    <input 
+                                        type="file" 
+                                        ref={fileInputRef} 
+                                        className="hidden" 
+                                        accept="image/*"
+                                        onChange={handleImageUpload}
+                                    />
+                                </div>
+                                
+                                <button
+                                    onClick={handleAnalyze}
+                                    disabled={isLoading || !rawInput.trim()}
+                                    className={`
+                                        w-full sm:w-auto px-6 py-2 rounded-lg text-sm font-semibold text-white shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2
+                                        ${isLoading || !rawInput.trim() 
+                                        ? 'bg-gray-300 cursor-not-allowed' 
+                                        : 'bg-systemBlue hover:bg-blue-600'
+                                        }
+                                    `}
+                                >
+                                    {isLoading && <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
+                                    {isLoading ? '正在分析...' : '開始分析'}
+                                </button>
+                            </div>
+
+                            {error && (
+                                <div className="mt-4 px-4 py-3 bg-red-50 border border-red-100 text-red-600 rounded-lg text-xs flex items-center gap-2 animate-fade-in">
+                                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    {error}
+                                </div>
+                            )}
                         </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+                            <div className="bg-white/40 p-4 rounded-xl border border-white/50 text-center">
+                                <div className="text-2xl mb-2">🗺️</div>
+                                <h3 className="text-sm font-semibold text-gray-700">自動分類</h3>
+                                <p className="text-xs text-gray-500 mt-1">智慧識別美食、景點、住宿</p>
+                            </div>
+                             <div className="bg-white/40 p-4 rounded-xl border border-white/50 text-center">
+                                <div className="text-2xl mb-2">📍</div>
+                                <h3 className="text-sm font-semibold text-gray-700">地圖定位</h3>
+                                <p className="text-xs text-gray-500 mt-1">自動修正座標與連結</p>
+                            </div>
+                             <div className="bg-white/40 p-4 rounded-xl border border-white/50 text-center">
+                                <div className="text-2xl mb-2">☁️</div>
+                                <h3 className="text-sm font-semibold text-gray-700">雲端同步</h3>
+                                <p className="text-xs text-gray-500 mt-1">跨裝置無縫接軌</p>
+                            </div>
                         </div>
                     </div>
-                    
-                    {error && (
-                        <div className="mt-6 px-4 py-3 bg-systemRed/10 border border-systemRed/20 text-systemRed rounded-lg text-sm max-w-md text-center animate-fade-in">
-                        {error}
-                        </div>
-                    )}
                 </div>
             ) : (
                 // RESULTS VIEW
