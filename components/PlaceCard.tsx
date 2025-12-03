@@ -79,8 +79,8 @@ const PlaceCard: React.FC<PlaceCardProps> = ({ place, onDelete, onAddPlace, isSe
       `}
     >
       
-      {/* Action Buttons Group */}
-      <div className="absolute top-3 right-3 flex gap-2 z-10 opacity-0 group-hover:opacity-100 transition-all">
+      {/* Action Buttons Group - Visible by default on mobile, hover on desktop */}
+      <div className="absolute top-3 right-3 flex gap-2 z-10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
         {onAddPlace && (
           <button 
             onClick={handleAdd}
@@ -93,7 +93,7 @@ const PlaceCard: React.FC<PlaceCardProps> = ({ place, onDelete, onAddPlace, isSe
           </button>
         )}
         
-        {/* New Map Link Button */}
+        {/* Map Link Button */}
         <a 
           href={mapsUrl}
           target="_blank"
@@ -123,7 +123,7 @@ const PlaceCard: React.FC<PlaceCardProps> = ({ place, onDelete, onAddPlace, isSe
         <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide ${getCategoryStyle(place.category)}`}>
           {place.subCategory}
         </span>
-        <div className="pr-20"> {/* Increased padding-right to avoid overlap with actions */}
+        <div className="pr-20"> {/* Padding to prevent text from overlapping with buttons */}
             {renderStars(place.ratingPrediction, place.isVerified)}
         </div>
       </div>
