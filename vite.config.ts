@@ -9,6 +9,9 @@ export default defineConfig(({ mode }) => {
     define: {
       // Expose the API_KEY environment variable to the client-side code
       'process.env.API_KEY': JSON.stringify(env.API_KEY || process.env.API_KEY)
+    },
+    build: {
+      chunkSizeWarningLimit: 1600,
     }
   };
 });
