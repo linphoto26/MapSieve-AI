@@ -25,6 +25,8 @@ export interface Place {
   };
   googleMapsUri?: string; // Real Google Maps Link from Grounding
   isVerified?: boolean; // True if validated by Google Maps Grounding
+  imageUri?: string; // URL of an image representing the place
+  websiteUri?: string; // URL to the official website or specific blog post section
 }
 
 export interface AnalysisResult {
@@ -38,4 +40,16 @@ export interface UserProfile {
   displayName: string | null;
   email: string | null;
   photoURL: string | null;
+}
+
+// Extend Window interface for IDX or AI Studio environments
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+
+  interface Window {
+    aistudio?: AIStudio;
+  }
 }

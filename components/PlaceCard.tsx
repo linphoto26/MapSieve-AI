@@ -71,26 +71,54 @@ const PlaceCard: React.FC<PlaceCardProps> = ({ place, onDelete, onAddPlace, isSe
     <div 
       id={id}
       className={`
-        bg-white/60 backdrop-blur-md rounded-2xl border hover:shadow-lg transition-all duration-300 p-4 flex flex-col h-full relative overflow-hidden group
+        bg-white/60 backdrop-blur-md rounded-2xl border hover:shadow-lg transition-all duration-300 flex flex-col h-full relative overflow-hidden group
         ${isSelected 
           ? 'border-systemBlue ring-4 ring-systemBlue/20 shadow-mac-active scale-[1.02] z-10' 
           : 'border-white/50 shadow-mac-card'
         }
       `}
     >
-      
+      {/* Cover Image (If available from extraction) */}
+      {place.imageUri && (
+        <div className="w-full h-32 overflow-hidden relative bg-gray-100">
+           <img 
+             src={place.imageUri} 
+             alt={place.name} 
+             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+           />
+           <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+        </div>
+      )}
+
       {/* Action Buttons Group - Visible by default on mobile, hover on desktop */}
       <div className="absolute top-3 right-3 flex gap-2 z-10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
         {onAddPlace && (
           <button 
             onClick={handleAdd}
-            className="p-1 text-gray-400 hover:text-white hover:bg-systemBlue/80 rounded-md transition-all"
+            className="p-1 text-gray-600 bg-white/80 hover:bg-systemBlue hover:text-white rounded-md transition-all shadow-sm backdrop-blur-sm"
             title="新增地點 (貼上 Google Maps 連結)"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
           </button>
+        )}
+
+        {/* Website Link Button (If available) */}
+        {place.websiteUri && (
+             <a 
+             href={place.websiteUri}
+             target="_blank"
+             rel="noopener noreferrer"
+             onClick={(e) => e.stopPropagation()}
+             className="p-1 text-gray-600 bg-white/80 hover:bg-systemIndigo hover:text-white rounded-md transition-all shadow-sm backdrop-blur-sm"
+             title="官方網站 / 文章來源"
+           >
+             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+             </svg>
+           </a>
         )}
         
         {/* Map Link Button */}
@@ -99,7 +127,7 @@ const PlaceCard: React.FC<PlaceCardProps> = ({ place, onDelete, onAddPlace, isSe
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
-          className="p-1 text-gray-400 hover:text-white hover:bg-systemGreen/80 rounded-md transition-all"
+          className="p-1 text-gray-600 bg-white/80 hover:bg-systemGreen hover:text-white rounded-md transition-all shadow-sm backdrop-blur-sm"
           title="在 Google 地圖中開啟"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -110,7 +138,7 @@ const PlaceCard: React.FC<PlaceCardProps> = ({ place, onDelete, onAddPlace, isSe
 
         <button 
           onClick={handleDelete}
-          className="p-1 text-gray-400 hover:text-white hover:bg-systemRed/80 rounded-md transition-all"
+          className="p-1 text-gray-600 bg-white/80 hover:bg-systemRed hover:text-white rounded-md transition-all shadow-sm backdrop-blur-sm"
           title="刪除"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -119,51 +147,53 @@ const PlaceCard: React.FC<PlaceCardProps> = ({ place, onDelete, onAddPlace, isSe
         </button>
       </div>
 
-      <div className="flex justify-between items-start mb-2">
-        <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide ${getCategoryStyle(place.category)}`}>
-          {place.subCategory}
-        </span>
-        <div className="pr-20"> {/* Padding to prevent text from overlapping with buttons */}
-            {renderStars(place.ratingPrediction, place.isVerified)}
+      <div className="p-4 flex flex-col flex-grow">
+        <div className="flex justify-between items-start mb-2">
+            <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide ${getCategoryStyle(place.category)}`}>
+            {place.subCategory}
+            </span>
+            <div className="pr-4"> 
+                {renderStars(place.ratingPrediction, place.isVerified)}
+            </div>
         </div>
-      </div>
 
-      <h3 className="font-bold text-gray-800 text-[17px] leading-tight mb-1 group-hover:text-systemBlue transition-colors">
-        {place.name}
-      </h3>
-      
-      <div className="flex items-center text-gray-500 text-[11px] mb-3 font-medium">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 mr-1 text-gray-400">
-          <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-        </svg>
-        {place.locationGuess || "地點未知"}
-      </div>
+        <h3 className="font-bold text-gray-800 text-[17px] leading-tight mb-1 group-hover:text-systemBlue transition-colors">
+            {place.name}
+        </h3>
+        
+        <div className="flex items-center text-gray-500 text-[11px] mb-3 font-medium">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 mr-1 text-gray-400">
+            <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+            </svg>
+            {place.locationGuess || "地點未知"}
+        </div>
 
-      <p className="text-gray-600 text-[13px] mb-4 flex-grow line-clamp-3 leading-relaxed opacity-90">
-        {place.description}
-      </p>
+        <p className="text-gray-600 text-[13px] mb-4 flex-grow line-clamp-3 leading-relaxed opacity-90">
+            {place.description}
+        </p>
 
-      <div className="flex flex-wrap gap-1.5 mb-4">
-        {place.tags.map((tag, i) => (
-          <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-white/50 text-gray-500 border border-black/5">
-            #{tag.replace(/\s+/g, '')}
-          </span>
-        ))}
-      </div>
-      
-      <div className="mt-auto flex items-center justify-between pt-3 border-t border-black/5">
-        {getPriceDisplay(place.priceLevel)}
-        <a 
-          href={mapsUrl} 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="text-[13px] font-medium text-systemBlue hover:text-blue-700 transition-colors flex items-center"
-        >
-          {place.isVerified ? 'Google 地圖' : '搜尋地圖'}
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
-        </a>
+        <div className="flex flex-wrap gap-1.5 mb-4">
+            {place.tags.map((tag, i) => (
+            <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-white/50 text-gray-500 border border-black/5">
+                #{tag.replace(/\s+/g, '')}
+            </span>
+            ))}
+        </div>
+        
+        <div className="mt-auto flex items-center justify-between pt-3 border-t border-black/5">
+            {getPriceDisplay(place.priceLevel)}
+            <a 
+            href={mapsUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-[13px] font-medium text-systemBlue hover:text-blue-700 transition-colors flex items-center"
+            >
+            {place.isVerified ? 'Google 地圖' : '搜尋地圖'}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+            </a>
+        </div>
       </div>
     </div>
   );

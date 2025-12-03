@@ -105,7 +105,9 @@ const JSON_STRUCTURE_PROMPT = `
           "tags": ["string"],
           "locationGuess": "string (Strict format: 'City District' e.g. '台北市 信義區', '京都市 右京區'. MUST use a space to separate City and District/Township. If District is unknown, use '市區')",
           "coordinates": { "lat": number, "lng": number },
-          "googleMapsUri": "string (LEAVE EMPTY unless you have a GROUNDED Google Maps URL. DO NOT GUESS.)"
+          "googleMapsUri": "string (LEAVE EMPTY unless you have a GROUNDED Google Maps URL. DO NOT GUESS.)",
+          "imageUri": "string (URL of an image representing this place found in the content. Must be a valid image URL ending in .jpg, .png, etc. or null)",
+          "websiteUri": "string (URL to the official website or the specific blog section/link for this place, or null)"
         }
       ]
     }
@@ -227,7 +229,7 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
   let prompt = "";
   let tools: any[] = [{ googleMaps: {} }]; // Default to using Maps Grounding
 
-  // --- MODE 1: URL Handling (Enhanced Accuracy) ---
+  // --- MODE 1: URL Handling (Enhanced Accuracy & Extraction) ---
   if (isUrl) {
     tools = [{ googleSearch: {} }]; 
     
@@ -236,7 +238,7 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
       The user provided a URL: "${rawText}".
       ${categoryContext}
       
-      Your Goal: DEEPLY PARSE content to build a highly accurate itinerary.
+      Your Goal: DEEPLY PARSE content to build a highly accurate itinerary with RICH MEDIA.
       
       *** CRITICAL: LOCATION DISAMBIGUATION STRATEGY ***
       1. **IDENTIFY CONTEXT**: First, determine the specific CITY and DISTRICT/AREA of the article (e.g. "Kyoto, Arashiyama", "Taipei, Xinyi").
@@ -247,7 +249,11 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
       3. **LINK ANALYSIS (Highest Priority)**:
          - Scan for <a> tags or Google Maps links near the place name.
          - If a link exists, use the specific name found in that link target or text.
-      4. **ADDRESS FALLBACK**:
+         - **Website Extraction**: If the article links to the official website or a booking page, extract that URL into 'websiteUri'.
+      4. **IMAGE EXTRACTION**:
+         - Look for <img> tags associated with the place.
+         - Extract the most representative image URL for each place into 'imageUri'. Ensure it is a direct image link (jpg/png/webp).
+      5. **ADDRESS FALLBACK**:
          - If the branch name is unclear, but an address is present (e.g. "No. 45, Shifu Rd"), format the name as "Place Name (Shifu Rd)" to help search accuracy.
 
       *** CONTENT EXTRACTION ***
@@ -272,8 +278,9 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
       Strategy:
       1. Identify the recurring DOM structure (e.g., repeating <div class="place-card"> or <li> items).
       2. Extract Name, Address (if available), and Description from each item.
-      3. Look for H1-H6 tags to identify sections and itinerary days.
-      4. Ignore navigation menus, footers, and comment sections.
+      3. **Images & Links**: Look for <img src="..."> and <a href="..."> tags within the place block. Extract them to 'imageUri' and 'websiteUri'.
+      4. Look for H1-H6 tags to identify sections and itinerary days.
+      5. Ignore navigation menus, footers, and comment sections.
       
       ${JSON_STRUCTURE_PROMPT}
       Output in Traditional Chinese (zh-TW).
