@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { analyzeMapData, analyzeImage } from './services/geminiService';
+import { analyzeMapData, analyzeImage, hasApiKey, setApiKey } from './services/geminiService';
 import { AnalysisResult, CategoryType, Place, UserProfile } from './types';
 import PlaceCard from './components/PlaceCard';
 import MapView from './components/MapView';
@@ -43,6 +43,10 @@ const App: React.FC = () => {
   const [showTutorial, setShowTutorial] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
+  // API Key Modal State
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+
   // Ref for file input
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addFileInputRef = useRef<HTMLInputElement>(null);
@@ -51,6 +55,13 @@ const App: React.FC = () => {
   const saveTimeoutRef = useRef<any>(null);
 
   const isUrlInput = (input: string) => input.trim().match(/^https?:\/\//i);
+
+  // Check for API Key on mount
+  useEffect(() => {
+    if (!hasApiKey()) {
+      setIsApiKeyModalOpen(true);
+    }
+  }, []);
 
   // Initialize Firebase from LocalStorage or Default Config
   useEffect(() => {
@@ -138,6 +149,12 @@ const App: React.FC = () => {
     }
   };
 
+  const handleSaveApiKey = () => {
+      if (!apiKeyInput.trim()) return;
+      setApiKey(apiKeyInput.trim());
+      setIsApiKeyModalOpen(false);
+  };
+
   const handleLogin = async () => {
     setLoginError(null);
     try {
@@ -214,6 +231,10 @@ const App: React.FC = () => {
       const data = await analyzeMapData(rawInput);
       setResult(data);
     } catch (err: any) {
+      if (err.message === "API_KEY_MISSING") {
+          setIsApiKeyModalOpen(true);
+          return;
+      }
       setError(err.message || "我們無法處理此清單，請嘗試提供更清楚的內容。");
     } finally {
       setIsLoading(false);
@@ -244,6 +265,10 @@ const App: React.FC = () => {
         const data = await analyzeImage(base64, file.type);
         setResult(data);
     } catch (err: any) {
+        if (err.message === "API_KEY_MISSING") {
+            setIsApiKeyModalOpen(true);
+            return;
+        }
         setError(err.message || "圖片分析失敗。");
     } finally {
         setIsLoading(false);
@@ -282,6 +307,10 @@ const App: React.FC = () => {
         });
         closeAddModal();
     } catch (err: any) {
+        if (err.message === "API_KEY_MISSING") {
+            setIsApiKeyModalOpen(true);
+            return;
+        }
         alert(err.message || "圖片分析失敗。");
     } finally {
         setIsAdding(false);
@@ -309,6 +338,10 @@ const App: React.FC = () => {
       });
       closeAddModal();
     } catch (err: any) {
+      if (err.message === "API_KEY_MISSING") {
+          setIsApiKeyModalOpen(true);
+          return;
+      }
       alert(err.message || "新增地點失敗，請稍後再試。");
     } finally {
       setIsAdding(false);
@@ -474,10 +507,11 @@ const App: React.FC = () => {
             <button 
                 onClick={() => setIsSettingsOpen(true)}
                 className={`p-1.5 rounded-md transition-all ${user ? 'text-systemBlue bg-systemBlue/10 hover:bg-systemBlue/20' : 'text-gray-400 hover:text-gray-600 hover:bg-black/5'}`}
-                title="雲端同步設定"
+                title="雲端同步與設定"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
             </button>
 
@@ -879,11 +913,83 @@ const App: React.FC = () => {
         </div>
       </div>
 
+      {/* API Key Modal (Shown on mount if missing) */}
+      {isApiKeyModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[60] flex items-center justify-center animate-fade-in px-4">
+           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+               <div className="p-6">
+                   <div className="flex flex-col items-center text-center mb-6">
+                       <div className="w-12 h-12 bg-systemBlue/10 text-systemBlue rounded-xl flex items-center justify-center mb-4">
+                           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+                       </div>
+                       <h3 className="text-xl font-bold text-gray-800">需要 Gemini API Key</h3>
+                       <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+                           由於 Vercel 環境限制，請手動輸入您的 Google Gemini API Key 以啟動服務。
+                           <br/>
+                           <span className="text-xs text-gray-400">(此 Key 僅儲存於您的瀏覽器 LocalStorage)</span>
+                       </p>
+                   </div>
+                   
+                   <div className="space-y-4">
+                       <div>
+                           <label className="text-xs font-medium text-gray-600 ml-1 mb-1 block">API Key</label>
+                           <input 
+                               type="password" 
+                               value={apiKeyInput}
+                               onChange={(e) => setApiKeyInput(e.target.value)}
+                               placeholder="AIzaSy..."
+                               className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-systemBlue/50"
+                           />
+                       </div>
+                       <div className="text-xs text-center">
+                           <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-systemBlue hover:underline">
+                               前往 Google AI Studio 取得 API Key
+                           </a>
+                       </div>
+                   </div>
+               </div>
+               <div className="bg-gray-50 px-6 py-4 flex justify-end">
+                   <button 
+                       onClick={handleSaveApiKey}
+                       disabled={!apiKeyInput.trim()}
+                       className="px-6 py-2 bg-systemBlue text-white rounded-lg text-sm font-medium shadow-sm hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                   >
+                       儲存並繼續
+                   </button>
+               </div>
+           </div>
+        </div>
+      )}
+
       {/* Settings / Sync Modal */}
       {isSettingsOpen && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in p-4">
           <div className="bg-white/95 backdrop-blur-xl w-full max-w-xl rounded-xl shadow-2xl border border-white/50 p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">雲端同步設定 (Firebase)</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">設定與雲端同步</h3>
+            
+            {/* API Key Section */}
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+                    Gemini API Key
+                </h4>
+                <div className="flex gap-2">
+                    <input 
+                        type="password"
+                        placeholder="更新您的 API Key..."
+                        className="flex-grow bg-white border border-gray-300 rounded px-3 py-1.5 text-sm"
+                        onChange={(e) => setApiKeyInput(e.target.value)}
+                    />
+                    <button 
+                        onClick={() => { setApiKey(apiKeyInput); alert("API Key 已更新"); setApiKeyInput(""); }}
+                        className="px-3 py-1.5 bg-gray-800 text-white text-xs rounded hover:bg-black"
+                    >
+                        更新
+                    </button>
+                </div>
+            </div>
+
+            <h3 className="text-sm font-semibold text-gray-800 mb-2 mt-6 border-t pt-4">Firebase 雲端同步</h3>
             <p className="text-xs text-gray-500 mb-4">
               此應用程式使用 Google Firebase 進行資料同步。請在下方貼上您的 Firebase Config JSON。
             </p>
