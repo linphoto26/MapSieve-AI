@@ -8,9 +8,22 @@ import { initializeFirebase, loginWithGoogle, logout, onUserChange, saveUserData
 import { generateCSV, generateKML, downloadFile } from './services/exportService';
 
 const App: React.FC = () => {
-  const [rawInput, setRawInput] = useState<string>('');
+  // PERSISTENCE: Initialize state from localStorage if available
+  const [rawInput, setRawInput] = useState<string>(() => {
+    return localStorage.getItem('mapsieve_input') || '';
+  });
+  
+  const [result, setResult] = useState<AnalysisResult | null>(() => {
+    const saved = localStorage.getItem('mapsieve_result');
+    try {
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      console.error("Failed to parse saved result", e);
+      return null;
+    }
+  });
+
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   
   // Filter States
@@ -60,6 +73,20 @@ const App: React.FC = () => {
   const saveTimeoutRef = useRef<any>(null);
 
   const isUrlInput = (input: string) => input.trim().match(/^https?:\/\//i);
+
+  // PERSISTENCE: Save rawInput to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('mapsieve_input', rawInput);
+  }, [rawInput]);
+
+  // PERSISTENCE: Save result to localStorage whenever it changes
+  useEffect(() => {
+    if (result) {
+      localStorage.setItem('mapsieve_result', JSON.stringify(result));
+    } else {
+      localStorage.removeItem('mapsieve_result');
+    }
+  }, [result]);
 
   // Check for API Key on mount
   useEffect(() => {
@@ -181,6 +208,7 @@ const App: React.FC = () => {
     await logout();
     setUser(null);
     setResult(null); // Clear data on logout for privacy
+    // Persistence effect will handle removing from localStorage
   };
 
   // Scroll to selected card when selectedPlaceId changes
@@ -380,6 +408,7 @@ const App: React.FC = () => {
     setSearchQuery('');
     setShowMap(false);
     setSelectedPlaceId(null);
+    // LocalStorage will be cleared by the useEffect because result becomes null
   };
 
   // Resets filters and sorting within the results view
