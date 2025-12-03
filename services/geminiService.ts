@@ -1,7 +1,10 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { AnalysisResult, CategoryType } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Initialize with a fallback to avoid crash on load if key is missing.
+// Validation happens during function execution.
+const apiKey = process.env.API_KEY || '';
+const ai = new GoogleGenAI({ apiKey });
 
 /**
  * Helper to safely extract and parse JSON from AI response text.
@@ -94,6 +97,8 @@ const JSON_STRUCTURE_PROMPT = `
  * Analyze an image using gemini-3-pro-preview with fallback to 2.5-flash
  */
 export const analyzeImage = async (base64Image: string, mimeType: string): Promise<AnalysisResult> => {
+  if (!apiKey) throw new Error("API Key 未設定。請確認 Vercel 環境變數或本地 .env 檔案。");
+
   const prompt = `
     You are a visual travel assistant. Identify places, restaurants, or attractions shown in this image.
     It could be a screenshot of a list, a photo of a menu, a signboard, or a travel guide page.
@@ -150,6 +155,8 @@ export const analyzeImage = async (base64Image: string, mimeType: string): Promi
  * Analyze text/URL using gemini-2.5-flash with Google Maps Grounding
  */
 export const analyzeMapData = async (rawText: string, categoryHint?: string): Promise<AnalysisResult> => {
+  if (!apiKey) throw new Error("API Key 未設定。請確認 Vercel 環境變數或本地 .env 檔案。");
+
   const modelId = "gemini-2.5-flash"; // Flash supports grounding efficiently
   const trimmedInput = rawText.trim();
   const isUrl = trimmedInput.match(/^https?:\/\//i);
