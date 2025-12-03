@@ -232,23 +232,29 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
     tools = [{ googleSearch: {} }]; 
     
     prompt = `
-      You are an EXPERT Web Scraper, HTML Parser, and Travel Data Analyst.
+      You are an EXPERT Web Scraper and Travel Data Analyst.
       The user provided a URL: "${rawText}".
       ${categoryContext}
       
-      Your Goal: DEEPLY PARSE and EXTRACT ALL content from this page to build a comprehensive travel itinerary.
+      Your Goal: DEEPLY PARSE content to build a highly accurate itinerary.
       
-      *** EXECUTION INSTRUCTIONS ***
-      1. **READ EVERYTHING**: Scan the MAIN TITLE, ALL PARAGRAPHS, ALL H1-H4 HEADERS, and LISTS (ul/ol).
-      2. **UNFOLD CONTENT**: Assume any "Read More", "Show All", or accordion sections are EXPANDED. Read their content.
-      3. **EXHAUSTIVE EXTRACTION**: Extract EVERY single place/spot mentioned. Do not stop at "Top 5" if the article mentions 20.
-      4. **LINK & IMAGE ANALYSIS**: Use Image Alt Text and Hyperlinks found in the page to verify place names and gain context.
-      5. **IGNORE NOISE**: Filter out sidebar ads, footer links, and "You might also like" recommendations. Only extract the MAIN CONTENT.
-      
-      *** MAPPING STRATEGY ***
-      - **places**: Identify every distinct location mentioned in the headers (H2/H3) or lists.
-      - **summary**: Summarize the article's main topic (based on the Main Title and Intro).
-      - **suggestedItinerary**: If the text contains headers like "Day 1", "Morning", "Route A", extract that full chronological structure into this field.
+      *** CRITICAL: LOCATION DISAMBIGUATION STRATEGY ***
+      1. **IDENTIFY CONTEXT**: First, determine the specific CITY and DISTRICT/AREA of the article (e.g. "Kyoto, Arashiyama", "Taipei, Xinyi").
+      2. **RESOLVE GENERIC NAMES**: 
+         - ❌ BAD: "Ippudo", "Starbucks", "7-Eleven"
+         - ✅ GOOD: "Ippudo Nishikikoji", "Starbucks Kyoto Ninenzaka Yasaka Chaya", "7-Eleven Alishan Store"
+         - **RULE**: You MUST append the Branch Name or Location Name if the place is a chain. Look for "Branch", "Store", "Building", or the header/paragraph immediately preceding the name.
+      3. **LINK ANALYSIS (Highest Priority)**:
+         - Scan for <a> tags or Google Maps links near the place name.
+         - If a link exists, use the specific name found in that link target or text.
+      4. **ADDRESS FALLBACK**:
+         - If the branch name is unclear, but an address is present (e.g. "No. 45, Shifu Rd"), format the name as "Place Name (Shifu Rd)" to help search accuracy.
+
+      *** CONTENT EXTRACTION ***
+      - **SCOPE**: Read Main Title, H1-H4 Headers, Lists (ul/ol), Paragraphs, and Captions.
+      - **UNFOLD CONTENT**: Simulate expanding all "Read More" / Accordions.
+      - **NOISE**: AGGRESSIVELY FILTER out "Read Also", "Popular Posts", Sidebar Ads, Footer links.
+      - **ITINERARY**: Extract chronological info (Day 1, Morning, Route A) into 'suggestedItinerary'.
       
       ${JSON_STRUCTURE_PROMPT}
       Output in Traditional Chinese (zh-TW).
