@@ -41,6 +41,7 @@ const App: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   // Ref for file input
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -138,13 +139,16 @@ const App: React.FC = () => {
   };
 
   const handleLogin = async () => {
+    setLoginError(null);
     try {
       await loginWithGoogle();
       // onUserChange will handle state update
     } catch (e: any) {
       console.error("Login Error:", e);
       if (e.code === 'auth/unauthorized-domain' || (e.message && e.message.includes('unauthorized-domain'))) {
-        alert("⚠️ 網域未授權 (Domain not authorized)\n\n這是 Google Firebase 的安全機制，防止未經授權的網站使用您的憑證。\n\n請前往 Firebase Console > Authentication > Settings > Authorized domains\n將您目前的網址（例如 localhost 或 webcontainer.io）加入白名單。");
+        setIsSettingsOpen(true);
+        setShowTutorial(true);
+        setLoginError('auth/unauthorized-domain');
       } else {
         alert("登入失敗: " + (e.message || "未知錯誤"));
       }
@@ -884,6 +888,26 @@ const App: React.FC = () => {
               此應用程式使用 Google Firebase 進行資料同步。請在下方貼上您的 Firebase Config JSON。
             </p>
 
+            {/* Error Banner for Unauthorized Domain */}
+            {loginError === 'auth/unauthorized-domain' && (
+                <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4 animate-pulse">
+                    <h4 className="text-red-700 font-bold text-sm mb-1">⚠️ 網域未授權 (Domain Not Authorized)</h4>
+                    <p className="text-red-600 text-xs mb-2">Google 安全機制阻擋了此請求。請將以下網域加入 Firebase Console 的白名單。</p>
+                    <div className="flex items-center gap-2">
+                        <code className="bg-white border border-red-200 px-2 py-1 rounded text-red-800 font-mono text-xs select-all">
+                            {window.location.hostname}
+                        </code>
+                        <button 
+                            onClick={() => navigator.clipboard.writeText(window.location.hostname)}
+                            className="text-xs text-red-700 underline hover:text-red-800"
+                        >
+                            複製
+                        </button>
+                    </div>
+                    <p className="text-red-500 text-[10px] mt-2">請參考下方教學步驟 3。</p>
+                </div>
+            )}
+
             {!isFirebaseInitialized() ? (
                 <div className="space-y-4">
                      <button 
@@ -908,9 +932,12 @@ const App: React.FC = () => {
                                 <li>
                                     <strong>重要：設定授權網域 (Authorized Domains)</strong>
                                     <ul className="list-disc list-inside ml-4 text-gray-500 mt-1">
-                                        <li>在 <strong>Authentication > Settings</strong> 分頁。</li>
+                                        <li>在 <strong>Authentication &gt; Settings</strong> 分頁。</li>
                                         <li>找到 <strong>Authorized domains</strong> 區塊。</li>
-                                        <li>點擊 Add domain，將您目前的網址 (例如 <code>localhost</code> 或開發環境網址) 加入。</li>
+                                        <li>
+                                            點擊 Add domain，加入您目前的網域：<br/>
+                                            <code className="bg-yellow-100 text-yellow-800 px-1 py-0.5 rounded select-all cursor-pointer" onClick={() => navigator.clipboard.writeText(window.location.hostname)} title="點擊複製">{window.location.hostname}</code>
+                                        </li>
                                     </ul>
                                 </li>
                                 <li>
