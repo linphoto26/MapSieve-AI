@@ -90,8 +90,8 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
         });
 
         // Double check coords again before passing to Leaflet
-        if (isValidCoord(p.coordinates!.lat, p.coordinates!.lng)) {
-            const marker = L.marker([p.coordinates!.lat, p.coordinates!.lng], { icon: icon })
+        if (p.coordinates && isValidCoord(p.coordinates.lat, p.coordinates.lng)) {
+            const marker = L.marker([p.coordinates.lat, p.coordinates.lng], { icon: icon })
               .addTo(map);
               
             // Bind Popup
@@ -108,7 +108,7 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
             });
             
             markersMap.current.set(p.id, marker);
-            bounds.extend([p.coordinates!.lat, p.coordinates!.lng]);
+            bounds.extend([p.coordinates.lat, p.coordinates.lng]);
             hasValidBounds = true;
         }
       } catch (err) {

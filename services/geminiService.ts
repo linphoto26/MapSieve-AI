@@ -244,30 +244,25 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
       
       Your Goal: DEEPLY PARSE content to build a highly accurate itinerary with RICH MEDIA.
       
-      *** 1. ITINERARY EXTRACTION (CRITICAL) ***
-      - Scan the web content specifically for chronological markers: "Day 1", "Day 2", "Morning", "Afternoon", "Evening", "Route", "Schedule".
-      - Extract any suggested routes or travel plans found in the article.
-      - **ACTION**: Compile these into the 'suggestedItinerary' field in the JSON output. Format it clearly (e.g. "Day 1: Place A -> Place B...").
-      - If it is a "Top 10" list without a route, leave 'suggestedItinerary' empty.
-
-      *** 2. LOCATION DISAMBIGUATION STRATEGY ***
-      - **IDENTIFY CONTEXT**: Determine the specific CITY and DISTRICT/AREA (e.g. "Kyoto, Arashiyama", "Taipei, Xinyi").
-      - **RESOLVE GENERIC NAMES**: 
-         - ❌ BAD: "Ippudo", "Starbucks", "7-Eleven"
-         - ✅ GOOD: "Ippudo Nishikikoji", "Starbucks Kyoto Ninenzaka Yasaka Chaya", "7-Eleven Alishan Store"
-         - **RULE**: Append Branch Name if it's a chain.
-      - **LINK ANALYSIS (Highest Priority)**:
-         - Scan for <a> tags or Google Maps links near the place name.
-         - If a link exists, use the name from the link.
-         - **Website Extraction**: Extract official website/booking links into 'websiteUri'.
-      - **IMAGE EXTRACTION**:
-         - Extract the most representative image URL for each place into 'imageUri'.
-      - **DETAILS EXTRACTION**:
-         - Extract exact 'address' and 'openingHours' if found in the text.
-
-      *** 3. CONTENT SCOPE ***
-      - Read Main Title, H1-H4 Headers, Lists (ul/ol), Paragraphs.
-      - **NOISE FILTER**: Ignore "Read Also", "Popular Posts", Sidebar Ads.
+      *** PHASE 1: CONTENT EXTRACTION ***
+      - **Scope**: specific recommended places in the main article body. IGNORE sidebars, footers, "You might also like", and ads.
+      - **Itinerary**: Extract chronological markers ("Day 1", "Morning") into 'suggestedItinerary'.
+      
+      *** PHASE 2: ENTITY RESOLUTION & VALIDATION (CRITICAL) ***
+      - **Name Precision**:
+         - If the text says "Ichiran", find the context. Is it "Ichiran Asakusa"? Use the full specific name.
+         - If a Google Maps link is present (e.g., maps.app.goo.gl/...), use the name from that link target.
+      - **Location Hierarchy**:
+         - Deduce the City/District from the Article Title if not explicitly stated next to the place.
+         - Format 'locationGuess' strictly as "City District" (e.g., "Kyoto Arashiyama").
+      - **Cross-Reference**:
+         - Does the extracted address match the inferred city? If not, trust the address.
+         - If a place has no description or is just a link in a footer, IGNORE it.
+      
+      *** PHASE 3: MEDIA & DETAILS ***
+      - **Images**: Find the <img> tag visually associated with the place header.
+      - **Links**: Extract official websites or booking links into 'websiteUri'.
+      - **Metadata**: specific address and opening hours.
       
       ${JSON_STRUCTURE_PROMPT}
       Output in Traditional Chinese (zh-TW).
