@@ -10,8 +10,6 @@
         theme: {
           extend: {
             colors: {
-              // macOS System Colors (Light Mode approximations)
-              systemGray: '#8E8E93',
               systemBlue: '#007AFF',
               systemGreen: '#34C759',
               systemRed: '#FF3B30',
@@ -19,8 +17,6 @@
               systemYellow: '#FFCC00',
               systemIndigo: '#5856D6',
               systemTeal: '#5AC8FA',
-              macWindow: 'rgba(255, 255, 255, 0.85)',
-              macGlass: 'rgba(245, 245, 247, 0.6)',
             },
             fontFamily: {
               sans: [
@@ -35,75 +31,74 @@
                 'sans-serif',
               ],
             },
-            boxShadow: {
-              'mac-window': '0 20px 40px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.05)',
-              'mac-card': '0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.02)',
-              'mac-active': '0 0 0 4px rgba(0,122,255,0.3)',
+            animation: {
+              'fade-in': 'fadeIn 0.3s ease-in-out',
+              'fade-in-up': 'fadeInUp 0.5s ease-out',
             },
-            backdropBlur: {
-              'mac': '20px',
-            }
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              fadeInUp: {
+                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+            },
           },
         },
       };
     </script>
     <style>
       body {
-        /* macOS Big Sur Default Wallpaper inspired gradient */
-        background: linear-gradient(135deg, #fccb90 0%, #d57eeb 50%, #9198e5 100%);
-        background-attachment: fixed;
-        background-size: cover;
+        background-color: #f3f4f6; /* Gray-50 */
         min-height: 100vh;
         -webkit-font-smoothing: antialiased;
-        color: #1d1d1f;
+        color: #1f2937;
       }
       
-      /* Glassmorphism Utilities */
-      .mac-window {
-        background: rgba(255, 255, 255, 0.75);
-        backdrop-filter: blur(25px) saturate(180%);
-        -webkit-backdrop-filter: blur(25px) saturate(180%);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      /* Custom Scrollbar */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
       }
-      
-      .mac-panel {
-        background: rgba(255, 255, 255, 0.5);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border: 1px solid rgba(255, 255, 255, 0.4);
-      }
-
-      /* Custom Scrollbar for macOS look on Windows */
-      ::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
-      }
-      ::-webkit-scrollbar-track {
+      .custom-scrollbar::-webkit-scrollbar-track {
         background: transparent; 
       }
-      ::-webkit-scrollbar-thumb {
-        background: rgba(0, 0, 0, 0.2); 
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.1); 
         border-radius: 10px;
-        border: 3px solid transparent;
-        background-clip: content-box;
       }
-      ::-webkit-scrollbar-thumb:hover {
-        background-color: rgba(0, 0, 0, 0.4); 
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(0, 0, 0, 0.2); 
+      }
+
+      /* Hide scrollbar for horizontal scrolling areas */
+      .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      .mask-gradient-right {
+        mask-image: linear-gradient(to right, black 90%, transparent 100%);
+        -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
       }
     </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script type="importmap">
+  <script type="importmap">
 {
   "imports": {
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
-    "vite": "https://aistudiocdn.com/vite@^7.2.6",
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
     "react": "https://aistudiocdn.com/react@^19.2.1",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/",
+    "vite": "https://aistudiocdn.com/vite@^7.2.6",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1"
   }
 }
 </script>

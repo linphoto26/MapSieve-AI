@@ -93,7 +93,7 @@ const JSON_STRUCTURE_PROMPT = `
     Structure:
     {
       "summary": "string (One sentence summary in Traditional Chinese)",
-      "suggestedItinerary": "string (Optional daily route plan extracted from the text)",
+      "suggestedItinerary": "string (Optional daily route plan extracted from the text. e.g. 'Day 1: A -> B -> C')",
       "places": [
         {
           "name": "string (Full specific name, e.g. 'Starbucks Shibuya Tsutaya' not just 'Starbucks')",
@@ -240,27 +240,28 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
       
       Your Goal: DEEPLY PARSE content to build a highly accurate itinerary with RICH MEDIA.
       
-      *** CRITICAL: LOCATION DISAMBIGUATION STRATEGY ***
-      1. **IDENTIFY CONTEXT**: First, determine the specific CITY and DISTRICT/AREA of the article (e.g. "Kyoto, Arashiyama", "Taipei, Xinyi").
-      2. **RESOLVE GENERIC NAMES**: 
+      *** 1. ITINERARY EXTRACTION (CRITICAL) ***
+      - Scan the web content specifically for chronological markers: "Day 1", "Day 2", "Morning", "Afternoon", "Evening", "Route", "Schedule".
+      - Extract any suggested routes or travel plans found in the article.
+      - **ACTION**: Compile these into the 'suggestedItinerary' field in the JSON output. Format it clearly (e.g. "Day 1: Place A -> Place B...").
+      - If it is a "Top 10" list without a route, leave 'suggestedItinerary' empty.
+
+      *** 2. LOCATION DISAMBIGUATION STRATEGY ***
+      - **IDENTIFY CONTEXT**: Determine the specific CITY and DISTRICT/AREA (e.g. "Kyoto, Arashiyama", "Taipei, Xinyi").
+      - **RESOLVE GENERIC NAMES**: 
          - ❌ BAD: "Ippudo", "Starbucks", "7-Eleven"
          - ✅ GOOD: "Ippudo Nishikikoji", "Starbucks Kyoto Ninenzaka Yasaka Chaya", "7-Eleven Alishan Store"
-         - **RULE**: You MUST append the Branch Name or Location Name if the place is a chain. Look for "Branch", "Store", "Building", or the header/paragraph immediately preceding the name.
-      3. **LINK ANALYSIS (Highest Priority)**:
+         - **RULE**: Append Branch Name if it's a chain.
+      - **LINK ANALYSIS (Highest Priority)**:
          - Scan for <a> tags or Google Maps links near the place name.
-         - If a link exists, use the specific name found in that link target or text.
-         - **Website Extraction**: If the article links to the official website or a booking page, extract that URL into 'websiteUri'.
-      4. **IMAGE EXTRACTION**:
-         - Look for <img> tags associated with the place.
-         - Extract the most representative image URL for each place into 'imageUri'. Ensure it is a direct image link (jpg/png/webp).
-      5. **ADDRESS FALLBACK**:
-         - If the branch name is unclear, but an address is present (e.g. "No. 45, Shifu Rd"), format the name as "Place Name (Shifu Rd)" to help search accuracy.
+         - If a link exists, use the name from the link.
+         - **Website Extraction**: Extract official website/booking links into 'websiteUri'.
+      - **IMAGE EXTRACTION**:
+         - Extract the most representative image URL for each place into 'imageUri'.
 
-      *** CONTENT EXTRACTION ***
-      - **SCOPE**: Read Main Title, H1-H4 Headers, Lists (ul/ol), Paragraphs, and Captions.
-      - **UNFOLD CONTENT**: Simulate expanding all "Read More" / Accordions.
-      - **NOISE**: AGGRESSIVELY FILTER out "Read Also", "Popular Posts", Sidebar Ads, Footer links.
-      - **ITINERARY**: Extract chronological info (Day 1, Morning, Route A) into 'suggestedItinerary'.
+      *** 3. CONTENT SCOPE ***
+      - Read Main Title, H1-H4 Headers, Lists (ul/ol), Paragraphs.
+      - **NOISE FILTER**: Ignore "Read Also", "Popular Posts", Sidebar Ads.
       
       ${JSON_STRUCTURE_PROMPT}
       Output in Traditional Chinese (zh-TW).
