@@ -65,6 +65,10 @@ const App: React.FC = () => {
   // Export State
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
 
+  // Back To Top State
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const mainContentRef = useRef<HTMLDivElement>(null);
+
   // Ref for file input
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addFileInputRef = useRef<HTMLInputElement>(null);
@@ -165,6 +169,29 @@ const App: React.FC = () => {
 
     return () => clearTimeout(saveTimeoutRef.current);
   }, [result, user, isSyncing]);
+
+  // Scroll Detection for Back To Top
+  useEffect(() => {
+    const handleScroll = () => {
+      if (mainContentRef.current) {
+        setShowBackToTop(mainContentRef.current.scrollTop > 300);
+      }
+    };
+
+    const element = mainContentRef.current;
+    if (element) {
+      element.addEventListener('scroll', handleScroll);
+    }
+    return () => {
+      if (element) {
+        element.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, []);
+
+  const scrollToTop = () => {
+    mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleSaveConfig = () => {
     try {
@@ -626,7 +653,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Content Area */}
-        <div className="flex-grow overflow-y-auto overflow-x-hidden bg-white/30 relative">
+        <div ref={mainContentRef} className="flex-grow overflow-y-auto overflow-x-hidden bg-white/30 relative">
             <div className="flex h-full">
               {/* Sidebar / Filter Panel */}
               <div className="w-64 bg-white/40 backdrop-blur-md border-r border-black/5 flex-shrink-0 hidden md:flex flex-col p-4">
@@ -1029,6 +1056,19 @@ const App: React.FC = () => {
 
       {/* AI Chat Widget */}
       {result && <ChatWidget places={result.places} />}
+
+      {/* Back To Top Button */}
+      {showBackToTop && (
+        <button
+            onClick={scrollToTop}
+            className="fixed bottom-24 right-6 z-30 p-3 bg-white/80 backdrop-blur-md border border-gray-200 shadow-lg rounded-full text-gray-600 hover:text-systemBlue hover:scale-110 transition-all duration-300 animate-fade-in"
+            title="回到頂端"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+            </svg>
+        </button>
+      )}
 
       {/* API Key Modal (Shown on mount if missing) */}
       {isApiKeyModalOpen && (
