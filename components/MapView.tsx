@@ -54,13 +54,19 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
     const map = mapInstance.current;
     if (!map) return;
 
-    // Remove old markers that are not in the new places list (optional optimization)
-    // For simplicity, we clear and rebuild if places change significantly, 
-    // but here we just clear all to ensure consistency.
+    // Remove old markers
     markersMap.current.forEach((marker) => map.removeLayer(marker));
     markersMap.current.clear();
 
-    const validPlaces = places.filter(p => p.coordinates && typeof p.coordinates.lat === 'number' && typeof p.coordinates.lng === 'number');
+    // Strict validation: Ensure coordinates exist AND are valid numbers (not NaN)
+    const validPlaces = places.filter(p => 
+        p.coordinates && 
+        typeof p.coordinates.lat === 'number' && 
+        typeof p.coordinates.lng === 'number' &&
+        !isNaN(p.coordinates.lat) && 
+        !isNaN(p.coordinates.lng)
+    );
+    
     const bounds = L.latLngBounds([]);
 
     validPlaces.forEach(p => {
@@ -101,10 +107,7 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
       bounds.extend([p.coordinates!.lat, p.coordinates!.lng]);
     });
 
-    // Only fit bounds if we have points and it's likely an initial load 
-    // (prevent refitting if user is just interacting)
-    // A simple heuristic is checking if map zoom is undefined or we just loaded a new set of distinct places.
-    // For now, we fit bounds if validPlaces > 0.
+    // Only fit bounds if we have points and it's likely an initial load or reset
     if (validPlaces.length > 0 && !selectedPlaceId) {
        map.fitBounds(bounds, { padding: [50, 50] });
     }
@@ -113,33 +116,35 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
       map.invalidateSize();
     }, 200);
 
-  }, [places]); // Re-run when places list changes
+  }, [places]);
 
   // Handle Selection: FlyTo + Popup
   useEffect(() => {
     if (!selectedPlaceId) return;
     const marker = markersMap.current.get(selectedPlaceId);
     if (marker && mapInstance.current) {
-        mapInstance.current.flyTo(marker.getLatLng(), 15, {
-            duration: 1.5,
-            easeLinearity: 0.25
-        });
-        marker.openPopup();
+        // Ensure marker has valid latlng before flying to avoid crash
+        const ll = marker.getLatLng();
+        if (ll && typeof ll.lat === 'number' && typeof ll.lng === 'number' && !isNaN(ll.lat) && !isNaN(ll.lng)) {
+            mapInstance.current.flyTo(ll, 15, {
+                duration: 1.5,
+                easeLinearity: 0.25
+            });
+            marker.openPopup();
+        }
     }
   }, [selectedPlaceId]);
 
-  // Handle Hover: Highlight Marker (Z-Index + Scale simulation via Class or direct style)
+  // Handle Hover: Highlight Marker (Z-Index)
   useEffect(() => {
     // Reset all z-indexes
-    markersMap.current.forEach(m => m.setZIndexOffset(0));
+    markersMap.current.forEach((m: any) => m.setZIndexOffset(0));
     
     // Highlight hovered
     if (hoveredPlaceId) {
         const marker = markersMap.current.get(hoveredPlaceId);
         if (marker) {
             marker.setZIndexOffset(1000);
-            // Optional: You could manipulate the DOM element for scaling if desired, 
-            // but zIndex is usually sufficient for clarity.
         }
     }
   }, [hoveredPlaceId]);

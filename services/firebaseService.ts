@@ -68,15 +68,21 @@ export const saveUserData = async (uid: string, data: AnalysisResult) => {
 
 export const subscribeToUserData = (uid: string, callback: (data: AnalysisResult | null) => void) => {
   if (!db) return () => {};
-  const unsub = onSnapshot(doc(db, "users", uid), (doc) => {
-    if (doc.exists()) {
-      const data = doc.data();
-      if (data.analysisResult) {
-        callback(data.analysisResult as AnalysisResult);
+  const unsub = onSnapshot(doc(db, "users", uid), 
+    (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        if (data.analysisResult) {
+          callback(data.analysisResult as AnalysisResult);
+        }
+      } else {
+        callback(null);
       }
-    } else {
-      callback(null);
+    },
+    (error) => {
+      console.warn("Firestore sync error (likely permissions or offline):", error.code);
+      // Suppress the error to prevent app crash, user will just not sync.
     }
-  });
+  );
   return unsub;
 };
