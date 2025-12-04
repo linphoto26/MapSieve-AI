@@ -443,6 +443,8 @@ const App: React.FC = () => {
     setShowMap(false);
     setSelectedPlaceId(null);
     setHoveredPlaceId(null);
+    localStorage.removeItem('mapsieve_result');
+    localStorage.removeItem('mapsieve_input');
   };
 
   const handleResetFilters = () => {
@@ -558,7 +560,7 @@ const App: React.FC = () => {
         <div className="flex items-center gap-3">
           <div className="bg-gradient-to-tr from-systemBlue to-cyan-500 text-white p-1.5 rounded-lg shadow-sm">
              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 01-.806-.984A1 1 0 0021 6a1 1 0 01-1-1 1 1 0 01-1 1 1 1 0 01-1-1 1 1 0 01-1 1 1 1 0 01-1 1H21" />
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 01-.806-.984A1 1 0 0021 6a1 1 0 01-1-1 1 1 0 01-1 1 1 1 0 01-1 1H21" />
              </svg>
           </div>
           <h1 className="text-xl font-bold text-gray-800 tracking-tight flex items-center gap-2">
