@@ -43,9 +43,6 @@ const App: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [addCategory, setAddCategory] = useState<CategoryType | 'AUTO'>('AUTO');
 
-  // State for Map View
-  const [showMap, setShowMap] = useState<boolean>(false); // Used for Mobile Toggle
-  
   // State for Selection Highlight
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
@@ -440,7 +437,6 @@ const App: React.FC = () => {
     setActiveDistrict('ALL');
     setViewMode('CATEGORY');
     setSearchQuery('');
-    setShowMap(false);
     setSelectedPlaceId(null);
     setHoveredPlaceId(null);
     localStorage.removeItem('mapsieve_result');
@@ -857,32 +853,15 @@ const App: React.FC = () => {
                 {result && (
                     <div className="animate-fade-in w-full max-w-7xl mx-auto">
                         
-                        {/* Top Stats / Summary */}
-                        {viewMode === 'CATEGORY' && (
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                                <div className="col-span-1 lg:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                                    <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
-                                        <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 011.414.586l5.414 5.414a1 1 0 01.586 1.414V19a2 2 0 01-2 2z" /></svg>
-                                        行程總結
-                                    </h3>
-                                    <p className="text-sm text-gray-600 leading-relaxed">
-                                        {result.summary}
-                                    </p>
-                                </div>
-
-                                {result.suggestedItinerary && (
-                                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-100 shadow-sm overflow-y-auto max-h-60">
-                                        <h3 className="text-base font-bold text-systemBlue mb-3 flex items-center gap-2">
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 01-.806-.984A1 1 0 0021 6a1 1 0 01-1-1 1 1 0 01-1 1 1 1 0 01-1 1H21" /></svg>
-                                            建議路線
-                                        </h3>
-                                        <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed font-medium">
-                                            {result.suggestedItinerary}
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                        {/* Mobile Map View (Replaces Summary Area on Mobile) */}
+                        <div className="mb-6 rounded-xl overflow-hidden border border-gray-200 shadow-sm h-64 sm:h-80 md:hidden shrink-0">
+                             <MapView 
+                                places={placesToShow} 
+                                onSelectPlace={setSelectedPlaceId}
+                                selectedPlaceId={selectedPlaceId}
+                                hoveredPlaceId={hoveredPlaceId}
+                            />
+                        </div>
 
                         {/* Mobile Filters (Only visible on small screens) */}
                         <div className="md:hidden mb-6 space-y-3">
@@ -919,35 +898,6 @@ const App: React.FC = () => {
                                         </button>
                                     ))}
                                 </div>
-                            </div>
-                        )}
-
-                        {/* Mobile Map Toggle */}
-                        <div className="flex justify-end mb-4 md:hidden">
-                            <button
-                                onClick={() => setShowMap(!showMap)}
-                                className={`
-                                px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex items-center gap-2
-                                ${showMap 
-                                    ? 'bg-gray-800 text-white border-gray-800' 
-                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                                }
-                                `}
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 01-.806-.984A1 1 0 0021 6a1 1 0 01-1-1 1 1 0 01-1 1 1 1 0 01-1 1H21" /></svg>
-                                {showMap ? '隱藏地圖' : '顯示地圖'}
-                            </button>
-                        </div>
-
-                        {/* Mobile Map View */}
-                        {showMap && (
-                            <div className="mb-8 rounded-xl overflow-hidden border border-gray-200 shadow-sm h-80 sm:h-96 md:hidden">
-                                <MapView 
-                                    places={placesToShow} 
-                                    onSelectPlace={setSelectedPlaceId}
-                                    selectedPlaceId={selectedPlaceId}
-                                    hoveredPlaceId={hoveredPlaceId}
-                                />
                             </div>
                         )}
 
