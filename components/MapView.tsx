@@ -23,6 +23,10 @@ const getCategoryColor = (cat: CategoryType) => {
   }
 };
 
+const isValidCoord = (lat: any, lng: any) => {
+  return typeof lat === 'number' && typeof lng === 'number' && Number.isFinite(lat) && Number.isFinite(lng);
+};
+
 const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceId, hoveredPlaceId }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
@@ -58,16 +62,13 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
     markersMap.current.forEach((marker) => map.removeLayer(marker));
     markersMap.current.clear();
 
-    // Strict validation: Ensure coordinates exist AND are valid numbers (not NaN)
+    // Filter valid places
     const validPlaces = places.filter(p => 
-        p.coordinates && 
-        typeof p.coordinates.lat === 'number' && 
-        typeof p.coordinates.lng === 'number' &&
-        !isNaN(p.coordinates.lat) && 
-        !isNaN(p.coordinates.lng)
+        p.coordinates && isValidCoord(p.coordinates.lat, p.coordinates.lng)
     );
     
     const bounds = L.latLngBounds([]);
+    let hasValidBounds = false;
 
     validPlaces.forEach(p => {
       try {
@@ -89,7 +90,7 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
         });
 
         // Double check coords again before passing to Leaflet
-        if (!isNaN(p.coordinates!.lat) && !isNaN(p.coordinates!.lng)) {
+        if (isValidCoord(p.coordinates!.lat, p.coordinates!.lng)) {
             const marker = L.marker([p.coordinates!.lat, p.coordinates!.lng], { icon: icon })
               .addTo(map);
               
@@ -108,6 +109,7 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
             
             markersMap.current.set(p.id, marker);
             bounds.extend([p.coordinates!.lat, p.coordinates!.lng]);
+            hasValidBounds = true;
         }
       } catch (err) {
         console.warn("Skipping invalid marker:", p.name, err);
@@ -115,17 +117,18 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
     });
 
     // Only fit bounds if we have points and it's likely an initial load or reset
-    // Added try-catch and isValid check for bounds
-    if (validPlaces.length > 0 && !selectedPlaceId && bounds.isValid()) {
+    if (hasValidBounds && !selectedPlaceId) {
        try {
-         map.fitBounds(bounds, { padding: [50, 50] });
+         if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [50, 50] });
+         }
        } catch (e) {
          console.warn("FitBounds failed:", e);
        }
     }
     
     setTimeout(() => {
-      map.invalidateSize();
+      try { map.invalidateSize(); } catch(e) {}
     }, 200);
 
   }, [places]);
@@ -138,12 +141,14 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
         try {
             // Ensure marker has valid latlng before flying to avoid crash
             const ll = marker.getLatLng();
-            if (ll && typeof ll.lat === 'number' && typeof ll.lng === 'number' && !isNaN(ll.lat) && !isNaN(ll.lng)) {
+            if (ll && isValidCoord(ll.lat, ll.lng)) {
                 mapInstance.current.flyTo(ll, 15, {
                     duration: 1.5,
                     easeLinearity: 0.25
                 });
                 marker.openPopup();
+            } else {
+                console.warn("Skipping FlyTo: Invalid marker coordinates");
             }
         } catch (e) {
             console.warn("Map FlyTo failed:", e);
