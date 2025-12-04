@@ -44,7 +44,7 @@ const App: React.FC = () => {
   const [addCategory, setAddCategory] = useState<CategoryType | 'AUTO'>('AUTO');
 
   // State for Map View
-  const [showMap, setShowMap] = useState<boolean>(false);
+  const [showMap, setShowMap] = useState<boolean>(false); // Used for Mobile Toggle
   
   // State for Selection Highlight
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
@@ -758,245 +758,265 @@ const App: React.FC = () => {
         </aside>
 
         {/* Content Area */}
-        <main ref={mainContentRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-8 custom-scrollbar scroll-smooth">
+        <main className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
             
-            {/* Input Dashboard (Empty State) */}
-            {!result && (
-                <div className="w-full max-w-2xl mx-auto mt-10">
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="bg-blue-100 p-2 rounded-xl">
-                                <svg className="w-6 h-6 text-systemBlue" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+            {/* List Column */}
+            <div ref={mainContentRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-8 custom-scrollbar scroll-smooth">
+                {/* Input Dashboard (Empty State) */}
+                {!result && (
+                    <div className="w-full max-w-2xl mx-auto mt-10">
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="bg-blue-100 p-2 rounded-xl">
+                                    <svg className="w-6 h-6 text-systemBlue" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                                </div>
+                                <h2 className="text-2xl font-bold text-gray-800">建立新行程</h2>
                             </div>
-                            <h2 className="text-2xl font-bold text-gray-800">建立新行程</h2>
-                        </div>
-                        
-                        <p className="text-gray-600 mb-4">
-                            輸入 Google Maps 連結、部落格文章網址，或貼上純文字內容。AI 將自動為您解析並整理成結構化行程。
-                        </p>
+                            
+                            <p className="text-gray-600 mb-4">
+                                輸入 Google Maps 連結、部落格文章網址，或貼上純文字內容。AI 將自動為您解析並整理成結構化行程。
+                            </p>
 
-                        <div className="relative">
-                           <textarea
-                               className="w-full h-40 p-4 text-base text-gray-800 placeholder-gray-400 bg-gray-50 border border-gray-200 focus:border-systemBlue focus:ring-2 focus:ring-blue-100 rounded-xl resize-none transition-all"
-                               placeholder="在此貼上..."
-                               value={rawInput}
-                               onChange={(e) => setRawInput(e.target.value)}
-                           />
-                        </div>
-                        
-                        <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-4">
-                            <div className="flex items-center gap-2 w-full sm:w-auto">
-                                <button 
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="flex-1 sm:flex-none text-sm font-medium text-gray-600 hover:text-systemBlue bg-white border border-gray-200 hover:border-blue-200 px-4 py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                    上傳圖片
-                                </button>
-                                <input 
-                                    type="file" 
-                                    ref={fileInputRef} 
-                                    className="hidden" 
-                                    accept="image/*"
-                                    onChange={handleImageUpload}
-                                />
+                            <div className="relative">
+                            <textarea
+                                className="w-full h-40 p-4 text-base text-gray-800 placeholder-gray-400 bg-gray-50 border border-gray-200 focus:border-systemBlue focus:ring-2 focus:ring-blue-100 rounded-xl resize-none transition-all"
+                                placeholder="在此貼上..."
+                                value={rawInput}
+                                onChange={(e) => setRawInput(e.target.value)}
+                            />
                             </div>
+                            
+                            <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-4">
+                                <div className="flex items-center gap-2 w-full sm:w-auto">
+                                    <button 
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="flex-1 sm:flex-none text-sm font-medium text-gray-600 hover:text-systemBlue bg-white border border-gray-200 hover:border-blue-200 px-4 py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                        上傳圖片
+                                    </button>
+                                    <input 
+                                        type="file" 
+                                        ref={fileInputRef} 
+                                        className="hidden" 
+                                        accept="image/*"
+                                        onChange={handleImageUpload}
+                                    />
+                                </div>
+                                <button
+                                    onClick={handleAnalyze}
+                                    disabled={isLoading || !rawInput.trim()}
+                                    className={`
+                                        w-full sm:w-auto px-8 py-2.5 rounded-lg text-sm font-bold text-white shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2
+                                        ${isLoading || !rawInput.trim() 
+                                        ? 'bg-gray-300 cursor-not-allowed' 
+                                        : 'bg-systemBlue hover:bg-blue-600'
+                                        }
+                                    `}
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                            分析中...
+                                        </>
+                                    ) : (
+                                        <>開始分析</>
+                                    )}
+                                </button>
+                            </div>
+
+                            {error && (
+                                <div className="mt-6 px-4 py-3 bg-red-50 border border-red-100 text-red-600 rounded-lg text-sm flex items-start gap-3">
+                                    <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    <span>{error}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10 text-center">
+                            <div className="p-4">
+                                <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-3 text-2xl">🔗</div>
+                                <h3 className="font-bold text-gray-800">多元來源</h3>
+                                <p className="text-sm text-gray-500 mt-1">支援 Google Maps 清單、各大旅遊部落格文章。</p>
+                            </div>
+                            <div className="p-4">
+                                <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-3 text-2xl">📸</div>
+                                <h3 className="font-bold text-gray-800">視覺辨識</h3>
+                                <p className="text-sm text-gray-500 mt-1">拍下菜單、行程表或書本內容直接分析。</p>
+                            </div>
+                            <div className="p-4">
+                                <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-3 text-2xl">🤖</div>
+                                <h3 className="font-bold text-gray-800">AI 顧問</h3>
+                                <p className="text-sm text-gray-500 mt-1">分析完成後，可與 AI 對話詢問行程建議。</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Main Result Content */}
+                {result && (
+                    <div className="animate-fade-in w-full max-w-7xl mx-auto">
+                        
+                        {/* Top Stats / Summary */}
+                        {viewMode === 'CATEGORY' && (
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                                <div className="col-span-1 lg:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                                    <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                        <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 011.414.586l5.414 5.414a1 1 0 01.586 1.414V19a2 2 0 01-2 2z" /></svg>
+                                        行程總結
+                                    </h3>
+                                    <p className="text-sm text-gray-600 leading-relaxed">
+                                        {result.summary}
+                                    </p>
+                                </div>
+
+                                {result.suggestedItinerary && (
+                                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-100 shadow-sm overflow-y-auto max-h-60">
+                                        <h3 className="text-base font-bold text-systemBlue mb-3 flex items-center gap-2">
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 01-.806-.984A1 1 0 0021 6a1 1 0 01-1-1 1 1 0 01-1 1 1 1 0 01-1 1H21" /></svg>
+                                            建議路線
+                                        </h3>
+                                        <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed font-medium">
+                                            {result.suggestedItinerary}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Mobile Filters (Only visible on small screens) */}
+                        <div className="md:hidden mb-6 space-y-3">
+                            <input
+                                type="text"
+                                className="w-full bg-white border border-gray-200 rounded-lg py-2 px-4 text-sm shadow-sm"
+                                placeholder="搜尋..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            <div className="flex bg-gray-100 p-1 rounded-lg">
+                                <button onClick={() => setViewMode('CATEGORY')} className={`flex-1 py-1.5 text-xs font-medium rounded-md ${viewMode === 'CATEGORY' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>分類</button>
+                                <button onClick={() => setViewMode('LOCATION')} className={`flex-1 py-1.5 text-xs font-medium rounded-md ${viewMode === 'LOCATION' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>地區</button>
+                            </div>
+                        </div>
+
+                        {/* Secondary Navigation for District (Sticky) */}
+                        {viewMode === 'LOCATION' && activeLocation !== 'ALL' && availableDistricts.length > 0 && (
+                            <div className="sticky top-0 z-20 -mx-4 px-4 pb-4 pt-2 bg-gray-50/95 backdrop-blur-sm border-b border-gray-200 mb-6">
+                                <div className="flex overflow-x-auto gap-2 py-1 hide-scrollbar">
+                                    <button 
+                                    onClick={() => setActiveDistrict('ALL')}
+                                    className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${activeDistrict === 'ALL' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}
+                                    >
+                                    全部地區
+                                    </button>
+                                    {availableDistricts.map(dist => (
+                                        <button 
+                                        key={dist}
+                                        onClick={() => setActiveDistrict(dist)}
+                                        className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${activeDistrict === dist ? 'bg-systemBlue text-white border-systemBlue' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}
+                                        >
+                                        {dist}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Mobile Map Toggle */}
+                        <div className="flex justify-end mb-4 md:hidden">
                             <button
-                                onClick={handleAnalyze}
-                                disabled={isLoading || !rawInput.trim()}
+                                onClick={() => setShowMap(!showMap)}
                                 className={`
-                                    w-full sm:w-auto px-8 py-2.5 rounded-lg text-sm font-bold text-white shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2
-                                    ${isLoading || !rawInput.trim() 
-                                    ? 'bg-gray-300 cursor-not-allowed' 
-                                    : 'bg-systemBlue hover:bg-blue-600'
-                                    }
+                                px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex items-center gap-2
+                                ${showMap 
+                                    ? 'bg-gray-800 text-white border-gray-800' 
+                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                }
                                 `}
                             >
-                                {isLoading ? (
-                                    <>
-                                        <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                        分析中...
-                                    </>
-                                ) : (
-                                    <>開始分析</>
-                                )}
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 01-.806-.984A1 1 0 0021 6a1 1 0 01-1-1 1 1 0 01-1 1 1 1 0 01-1 1H21" /></svg>
+                                {showMap ? '隱藏地圖' : '顯示地圖'}
                             </button>
                         </div>
 
-                        {error && (
-                            <div className="mt-6 px-4 py-3 bg-red-50 border border-red-100 text-red-600 rounded-lg text-sm flex items-start gap-3">
-                                <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                <span>{error}</span>
+                        {/* Mobile Map View */}
+                        {showMap && (
+                            <div className="mb-8 rounded-xl overflow-hidden border border-gray-200 shadow-sm h-80 sm:h-96 md:hidden">
+                                <MapView 
+                                    places={placesToShow} 
+                                    onSelectPlace={setSelectedPlaceId}
+                                    selectedPlaceId={selectedPlaceId}
+                                    hoveredPlaceId={hoveredPlaceId}
+                                />
+                            </div>
+                        )}
+
+                        {/* Places Grid */}
+                        {placesToShow.length > 0 ? (
+                            <>
+                                {groupedPlaces ? (
+                                    <div className="space-y-12">
+                                        {groupedPlaces.sortedKeys.map(key => (
+                                            <div key={key}>
+                                                <div className="flex items-center gap-3 mb-6 pb-2 border-b border-gray-200">
+                                                    <h2 className="text-xl font-bold text-gray-800">{key}</h2>
+                                                    <span className="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-bold">{groupedPlaces.groups[key].length}</span>
+                                                </div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
+                                                    {groupedPlaces.groups[key].map(place => (
+                                                        <PlaceCard 
+                                                            key={place.id} 
+                                                            id={`card-${place.id}`}
+                                                            place={place} 
+                                                            onDelete={handleRemovePlace}
+                                                            onAddPlace={() => setIsAddModalOpen(true)}
+                                                            isSelected={selectedPlaceId === place.id}
+                                                            onHover={(id) => setHoveredPlaceId(id)}
+                                                            onClick={() => setSelectedPlaceId(place.id)}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-6 pb-12">
+                                        {placesToShow.map((place) => (
+                                            <PlaceCard 
+                                                key={place.id} 
+                                                id={`card-${place.id}`}
+                                                place={place} 
+                                                onDelete={handleRemovePlace}
+                                                onAddPlace={() => setIsAddModalOpen(true)}
+                                                isSelected={selectedPlaceId === place.id}
+                                                onHover={(id) => setHoveredPlaceId(id)}
+                                                onClick={() => setSelectedPlaceId(place.id)}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                                <svg className="w-16 h-16 mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                <p>找不到符合條件的地點</p>
                             </div>
                         )}
                     </div>
+                )}
+            </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10 text-center">
-                        <div className="p-4">
-                            <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-3 text-2xl">🔗</div>
-                            <h3 className="font-bold text-gray-800">多元來源</h3>
-                            <p className="text-sm text-gray-500 mt-1">支援 Google Maps 清單、各大旅遊部落格文章。</p>
-                        </div>
-                        <div className="p-4">
-                            <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-3 text-2xl">📸</div>
-                            <h3 className="font-bold text-gray-800">視覺辨識</h3>
-                            <p className="text-sm text-gray-500 mt-1">拍下菜單、行程表或書本內容直接分析。</p>
-                        </div>
-                        <div className="p-4">
-                            <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-3 text-2xl">🤖</div>
-                            <h3 className="font-bold text-gray-800">AI 顧問</h3>
-                            <p className="text-sm text-gray-500 mt-1">分析完成後，可與 AI 對話詢問行程建議。</p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Main Result Content */}
+            {/* Desktop Map Column (Sticky) */}
             {result && (
-                <div className="animate-fade-in w-full max-w-7xl mx-auto">
-                    
-                    {/* Top Stats / Summary */}
-                    {viewMode === 'CATEGORY' && (
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                            <div className="col-span-1 lg:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                                <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
-                                    <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 011.414.586l5.414 5.414a1 1 0 01.586 1.414V19a2 2 0 01-2 2z" /></svg>
-                                    行程總結
-                                </h3>
-                                <p className="text-sm text-gray-600 leading-relaxed">
-                                    {result.summary}
-                                </p>
-                            </div>
-
-                            {result.suggestedItinerary && (
-                                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-100 shadow-sm overflow-y-auto max-h-60">
-                                    <h3 className="text-base font-bold text-systemBlue mb-3 flex items-center gap-2">
-                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 01-.806-.984A1 1 0 0021 6a1 1 0 01-1-1 1 1 0 01-1 1 1 1 0 01-1 1H21" /></svg>
-                                        建議路線
-                                    </h3>
-                                    <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed font-medium">
-                                        {result.suggestedItinerary}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Mobile Filters (Only visible on small screens) */}
-                    <div className="md:hidden mb-6 space-y-3">
-                         <input
-                            type="text"
-                            className="w-full bg-white border border-gray-200 rounded-lg py-2 px-4 text-sm shadow-sm"
-                            placeholder="搜尋..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                <div className="hidden md:block w-[40%] h-full border-l border-gray-200 relative bg-gray-100">
+                     <div className="sticky top-0 h-full w-full">
+                        <MapView 
+                            places={placesToShow} 
+                            onSelectPlace={setSelectedPlaceId}
+                            selectedPlaceId={selectedPlaceId}
+                            hoveredPlaceId={hoveredPlaceId}
                         />
-                         <div className="flex bg-gray-100 p-1 rounded-lg">
-                            <button onClick={() => setViewMode('CATEGORY')} className={`flex-1 py-1.5 text-xs font-medium rounded-md ${viewMode === 'CATEGORY' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>分類</button>
-                            <button onClick={() => setViewMode('LOCATION')} className={`flex-1 py-1.5 text-xs font-medium rounded-md ${viewMode === 'LOCATION' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>地區</button>
-                         </div>
-                    </div>
-
-                    {/* Secondary Navigation for District (Sticky) */}
-                    {viewMode === 'LOCATION' && activeLocation !== 'ALL' && availableDistricts.length > 0 && (
-                        <div className="sticky top-0 z-20 -mx-4 px-4 pb-4 pt-2 bg-gray-50/95 backdrop-blur-sm border-b border-gray-200 mb-6">
-                             <div className="flex overflow-x-auto gap-2 py-1 hide-scrollbar">
-                                <button 
-                                   onClick={() => setActiveDistrict('ALL')}
-                                   className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${activeDistrict === 'ALL' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}
-                                >
-                                   全部地區
-                                </button>
-                                {availableDistricts.map(dist => (
-                                    <button 
-                                       key={dist}
-                                       onClick={() => setActiveDistrict(dist)}
-                                       className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${activeDistrict === dist ? 'bg-systemBlue text-white border-systemBlue' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}
-                                    >
-                                       {dist}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Map Toggle */}
-                    <div className="flex justify-end mb-4">
-                        <button
-                            onClick={() => setShowMap(!showMap)}
-                            className={`
-                            px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex items-center gap-2
-                            ${showMap 
-                                ? 'bg-gray-800 text-white border-gray-800' 
-                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                            }
-                            `}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 01-.806-.984A1 1 0 0021 6a1 1 0 01-1-1 1 1 0 01-1 1 1 1 0 01-1 1H21" /></svg>
-                            {showMap ? '隱藏地圖' : '顯示地圖'}
-                        </button>
-                    </div>
-
-                    {showMap && (
-                        <div className="mb-8 rounded-xl overflow-hidden border border-gray-200 shadow-sm h-80 sm:h-96">
-                             <MapView 
-                                places={placesToShow} 
-                                onSelectPlace={setSelectedPlaceId}
-                                selectedPlaceId={selectedPlaceId}
-                                hoveredPlaceId={hoveredPlaceId}
-                            />
-                        </div>
-                    )}
-
-                    {/* Places Grid */}
-                    {placesToShow.length > 0 ? (
-                        <>
-                             {groupedPlaces ? (
-                                <div className="space-y-12">
-                                    {groupedPlaces.sortedKeys.map(key => (
-                                        <div key={key}>
-                                            <div className="flex items-center gap-3 mb-6 pb-2 border-b border-gray-200">
-                                                <h2 className="text-xl font-bold text-gray-800">{key}</h2>
-                                                <span className="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-bold">{groupedPlaces.groups[key].length}</span>
-                                            </div>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                                {groupedPlaces.groups[key].map(place => (
-                                                    <PlaceCard 
-                                                        key={place.id} 
-                                                        id={`card-${place.id}`}
-                                                        place={place} 
-                                                        onDelete={handleRemovePlace}
-                                                        onAddPlace={() => setIsAddModalOpen(true)}
-                                                        isSelected={selectedPlaceId === place.id}
-                                                        onHover={(id) => setHoveredPlaceId(id)}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-12">
-                                    {placesToShow.map((place) => (
-                                        <PlaceCard 
-                                            key={place.id} 
-                                            id={`card-${place.id}`}
-                                            place={place} 
-                                            onDelete={handleRemovePlace}
-                                            onAddPlace={() => setIsAddModalOpen(true)}
-                                            isSelected={selectedPlaceId === place.id}
-                                            onHover={(id) => setHoveredPlaceId(id)}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                            <svg className="w-16 h-16 mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            <p>找不到符合條件的地點</p>
-                        </div>
-                    )}
+                     </div>
                 </div>
             )}
         </main>

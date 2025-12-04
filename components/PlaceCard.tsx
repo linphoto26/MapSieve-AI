@@ -7,6 +7,7 @@ interface PlaceCardProps {
   onAddPlace?: () => void;
   isSelected?: boolean;
   onHover?: (id: string | null) => void;
+  onClick?: () => void;
   id?: string;
 }
 
@@ -48,7 +49,7 @@ const renderStars = (rating: number, isVerified?: boolean) => {
   );
 };
 
-const PlaceCard: React.FC<PlaceCardProps> = ({ place, onDelete, onAddPlace, isSelected, onHover, id }) => {
+const PlaceCard: React.FC<PlaceCardProps> = ({ place, onDelete, onAddPlace, isSelected, onHover, onClick, id }) => {
   const searchQuery = `${place.name} ${place.subCategory || ''} ${place.locationGuess || ''}`.trim();
   const mapsUrl = place.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery)}`;
 
@@ -69,10 +70,11 @@ const PlaceCard: React.FC<PlaceCardProps> = ({ place, onDelete, onAddPlace, isSe
   return (
     <div 
       id={id}
+      onClick={onClick}
       onMouseEnter={() => onHover?.(place.id)}
       onMouseLeave={() => onHover?.(null)}
       className={`
-        bg-white rounded-xl border transition-all duration-200 flex flex-col h-full relative group overflow-hidden
+        bg-white rounded-xl border transition-all duration-200 flex flex-col h-full relative group overflow-hidden cursor-pointer
         ${isSelected 
           ? 'border-systemBlue ring-2 ring-blue-100 shadow-md transform scale-[1.02] z-10' 
           : 'border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300'
@@ -150,6 +152,7 @@ const PlaceCard: React.FC<PlaceCardProps> = ({ place, onDelete, onAddPlace, isSe
             href={mapsUrl} 
             target="_blank" 
             rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
             className="text-xs font-semibold text-systemBlue hover:text-blue-700 flex items-center"
             >
             {place.isVerified ? '前往 Google Maps' : '搜尋位置'}
