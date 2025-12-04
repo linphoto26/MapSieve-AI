@@ -104,6 +104,8 @@ const JSON_STRUCTURE_PROMPT = `
           "priceLevel": "Free" | "$" | "$$" | "$$$" | "$$$$" | "Unknown",
           "tags": ["string"],
           "locationGuess": "string (Strict format: 'City District' e.g. '台北市 信義區', '京都市 右京區'. DO NOT include Country names like 'Taiwan' or 'Japan'. MUST use a space to separate City and District/Township. If District is unknown, use '市區')",
+          "address": "string (Full specific address if available in the text/source, otherwise null)",
+          "openingHours": "string (e.g. 'Mon-Sun 10:00-22:00' or 'Unknown' if not found)",
           "coordinates": { "lat": number, "lng": number },
           "googleMapsUri": "string (LEAVE EMPTY unless you have a GROUNDED Google Maps URL. DO NOT GUESS.)",
           "imageUri": "string (URL of an image representing this place found in the content. Must be a valid image URL ending in .jpg, .png, etc. or null)",
@@ -126,7 +128,9 @@ export const createChatSession = (places: Place[]): Chat => {
         location: p.locationGuess,
         desc: p.description,
         rating: p.ratingPrediction,
-        price: p.priceLevel
+        price: p.priceLevel,
+        address: p.address,
+        hours: p.openingHours
     }));
 
     const systemInstruction = `
@@ -258,6 +262,8 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
          - **Website Extraction**: Extract official website/booking links into 'websiteUri'.
       - **IMAGE EXTRACTION**:
          - Extract the most representative image URL for each place into 'imageUri'.
+      - **DETAILS EXTRACTION**:
+         - Extract exact 'address' and 'openingHours' if found in the text.
 
       *** 3. CONTENT SCOPE ***
       - Read Main Title, H1-H4 Headers, Lists (ul/ol), Paragraphs.
@@ -278,7 +284,7 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
       
       Strategy:
       1. Identify the recurring DOM structure (e.g. repeating <div class="place-card"> or <li> items).
-      2. Extract Name, Address (if available), and Description from each item.
+      2. Extract Name, Address, Opening Hours, and Description from each item.
       3. **Images & Links**: Look for <img src="..."> and <a href="..."> tags within the place block. Extract them to 'imageUri' and 'websiteUri'.
       4. Look for H1-H6 tags to identify sections and itinerary days.
       5. Ignore navigation menus, footers, and comment sections.
@@ -296,7 +302,7 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
       ${categoryContext}
 
       Use the Google Maps tool to VERIFY these places.
-      - If a place exists on Google Maps, use its EXACT coordinates, correct official name.
+      - If a place exists on Google Maps, use its EXACT coordinates, correct official name, full address, and opening hours if available.
       - DO NOT invent a googleMapsUri unless the tool explicitly provides a deep link.
       
       ${JSON_STRUCTURE_PROMPT}

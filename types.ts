@@ -19,6 +19,8 @@ export interface Place {
   priceLevel: 'Free' | '$' | '$$' | '$$$' | '$$$$' | 'Unknown';
   tags: string[]; // e.g., ["Cozy", "Tourist Favorite", "Hidden Gem"]
   locationGuess: string; // City or Area guess
+  address?: string; // Full address
+  openingHours?: string; // e.g. "10:00 - 22:00"
   coordinates?: {
     lat: number;
     lng: number;
