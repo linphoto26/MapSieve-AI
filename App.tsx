@@ -48,6 +48,7 @@ const App: React.FC = () => {
   
   // State for Selection Highlight
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+  const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
 
   // Sync / Auth States
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -449,6 +450,7 @@ const App: React.FC = () => {
     setSearchQuery('');
     setShowMap(false);
     setSelectedPlaceId(null);
+    setHoveredPlaceId(null);
     // LocalStorage will be cleared by the useEffect because result becomes null
   };
 
@@ -983,7 +985,12 @@ const App: React.FC = () => {
 
                 {showMap && result && (
                   <div className="mb-8 animate-fade-in">
-                    <MapView places={placesToShow} onSelectPlace={setSelectedPlaceId} />
+                    <MapView 
+                        places={placesToShow} 
+                        onSelectPlace={setSelectedPlaceId}
+                        selectedPlaceId={selectedPlaceId}
+                        hoveredPlaceId={hoveredPlaceId}
+                    />
                   </div>
                 )}
 
@@ -1012,6 +1019,7 @@ const App: React.FC = () => {
                                                 onDelete={handleRemovePlace}
                                                 onAddPlace={() => setIsAddModalOpen(true)}
                                                 isSelected={selectedPlaceId === place.id}
+                                                onHover={(id) => setHoveredPlaceId(id)}
                                             />
                                         ))}
                                     </div>
@@ -1029,6 +1037,7 @@ const App: React.FC = () => {
                                     onDelete={handleRemovePlace}
                                     onAddPlace={() => setIsAddModalOpen(true)}
                                     isSelected={selectedPlaceId === place.id}
+                                    onHover={(id) => setHoveredPlaceId(id)}
                                 />
                             ))}
                         </div>

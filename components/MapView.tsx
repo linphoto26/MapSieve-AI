@@ -7,6 +7,8 @@ declare const L: any;
 interface MapViewProps {
   places: Place[];
   onSelectPlace: (id: string) => void;
+  selectedPlaceId?: string | null;
+  hoveredPlaceId?: string | null;
 }
 
 const getCategoryColor = (cat: CategoryType) => {
@@ -21,28 +23,42 @@ const getCategoryColor = (cat: CategoryType) => {
   }
 };
 
-const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace }) => {
+const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceId, hoveredPlaceId }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
+  const markersMap = useRef<Map<string, any>>(new Map());
 
+  // Initialize Map
   useEffect(() => {
     if (!mapRef.current) return;
 
     if (!mapInstance.current) {
-      mapInstance.current = L.map(mapRef.current).setView([23.5, 121], 7);
+      mapInstance.current = L.map(mapRef.current, {
+        zoomControl: false, // Cleaner look
+      }).setView([23.5, 121], 7);
+      
+      L.control.zoom({
+        position: 'bottomright'
+      }).addTo(mapInstance.current);
+
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 19
       }).addTo(mapInstance.current);
     }
+  }, []);
 
+  // Update Markers
+  useEffect(() => {
     const map = mapInstance.current;
+    if (!map) return;
 
-    // Clear existing markers
-    markersRef.current.forEach(marker => map.removeLayer(marker));
-    markersRef.current = [];
+    // Remove old markers that are not in the new places list (optional optimization)
+    // For simplicity, we clear and rebuild if places change significantly, 
+    // but here we just clear all to ensure consistency.
+    markersMap.current.forEach((marker) => map.removeLayer(marker));
+    markersMap.current.clear();
 
     const validPlaces = places.filter(p => p.coordinates && typeof p.coordinates.lat === 'number' && typeof p.coordinates.lng === 'number');
     const bounds = L.latLngBounds([]);
@@ -50,52 +66,86 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace }) => {
     validPlaces.forEach(p => {
       const color = getCategoryColor(p.category);
       
-      // Custom colored SVG Icon
-      const svgIcon = L.divIcon({
-        className: 'custom-pin',
-        html: `
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" stroke="#FFFFFF" stroke-width="2" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); width: 32px; height: 32px; transform: translate(-50%, -100%);">
+      const svgHtml = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" stroke="#FFFFFF" stroke-width="2" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); width: 100%; height: 100%;">
             <path fill-rule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
           </svg>
-        `,
+      `;
+
+      // Standard Icon
+      const icon = L.divIcon({
+        className: 'custom-pin',
+        html: `<div style="width: 32px; height: 32px; transform: translate(-50%, -100%); transition: transform 0.2s ease;">${svgHtml}</div>`,
         iconSize: [32, 32],
         iconAnchor: [16, 32],
         popupAnchor: [0, -32]
       });
 
-      const marker = L.marker([p.coordinates!.lat, p.coordinates!.lng], { icon: svgIcon })
+      const marker = L.marker([p.coordinates!.lat, p.coordinates!.lng], { icon: icon })
         .addTo(map);
         
       // Bind Popup
       marker.bindPopup(`
-          <div style="font-family: -apple-system, system-ui; padding: 4px;">
+          <div style="font-family: -apple-system, system-ui; padding: 4px; min-width: 150px;">
             <strong style="font-size: 14px; color: #333;">${p.name}</strong><br/>
             <span style="font-size: 12px; color: ${color}; font-weight: 600;">${p.subCategory}</span><br/>
             <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + ' ' + p.locationGuess)}" target="_blank" style="font-size: 11px; color: #007AFF; text-decoration: none; display: inline-block; margin-top: 4px;">開啟地圖</a>
           </div>
         `);
 
-      // Add Click Event to Highlight Card
       marker.on('click', () => {
         onSelectPlace(p.id);
       });
       
-      markersRef.current.push(marker);
+      markersMap.current.set(p.id, marker);
       bounds.extend([p.coordinates!.lat, p.coordinates!.lng]);
     });
 
-    if (validPlaces.length > 0) {
-      map.fitBounds(bounds, { padding: [50, 50] });
+    // Only fit bounds if we have points and it's likely an initial load 
+    // (prevent refitting if user is just interacting)
+    // A simple heuristic is checking if map zoom is undefined or we just loaded a new set of distinct places.
+    // For now, we fit bounds if validPlaces > 0.
+    if (validPlaces.length > 0 && !selectedPlaceId) {
+       map.fitBounds(bounds, { padding: [50, 50] });
     }
     
     setTimeout(() => {
       map.invalidateSize();
     }, 200);
 
-  }, [places, onSelectPlace]);
+  }, [places]); // Re-run when places list changes
+
+  // Handle Selection: FlyTo + Popup
+  useEffect(() => {
+    if (!selectedPlaceId) return;
+    const marker = markersMap.current.get(selectedPlaceId);
+    if (marker && mapInstance.current) {
+        mapInstance.current.flyTo(marker.getLatLng(), 15, {
+            duration: 1.5,
+            easeLinearity: 0.25
+        });
+        marker.openPopup();
+    }
+  }, [selectedPlaceId]);
+
+  // Handle Hover: Highlight Marker (Z-Index + Scale simulation via Class or direct style)
+  useEffect(() => {
+    // Reset all z-indexes
+    markersMap.current.forEach(m => m.setZIndexOffset(0));
+    
+    // Highlight hovered
+    if (hoveredPlaceId) {
+        const marker = markersMap.current.get(hoveredPlaceId);
+        if (marker) {
+            marker.setZIndexOffset(1000);
+            // Optional: You could manipulate the DOM element for scaling if desired, 
+            // but zIndex is usually sufficient for clarity.
+        }
+    }
+  }, [hoveredPlaceId]);
 
   return (
-    <div className="w-full h-96 rounded-2xl overflow-hidden shadow-mac-card border border-gray-200/50 z-0 relative">
+    <div className="w-full h-96 rounded-2xl overflow-hidden shadow-mac-card border border-gray-200/50 z-0 relative group">
        <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_20px_rgba(0,0,0,0.05)] z-10 rounded-2xl"></div>
       <div ref={mapRef} className="w-full h-full" />
     </div>

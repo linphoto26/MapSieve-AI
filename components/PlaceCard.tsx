@@ -6,6 +6,7 @@ interface PlaceCardProps {
   onDelete: (id: string) => void;
   onAddPlace?: () => void;
   isSelected?: boolean;
+  onHover?: (id: string | null) => void;
   id?: string;
 }
 
@@ -48,7 +49,7 @@ const renderStars = (rating: number, isVerified?: boolean) => {
   );
 };
 
-const PlaceCard: React.FC<PlaceCardProps> = ({ place, onDelete, onAddPlace, isSelected, id }) => {
+const PlaceCard: React.FC<PlaceCardProps> = ({ place, onDelete, onAddPlace, isSelected, onHover, id }) => {
   // Enhanced fallback logic:
   const searchQuery = `${place.name} ${place.subCategory || ''} ${place.locationGuess || ''}`.trim();
   const mapsUrl = place.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery)}`;
@@ -67,9 +68,19 @@ const PlaceCard: React.FC<PlaceCardProps> = ({ place, onDelete, onAddPlace, isSe
     onAddPlace?.();
   };
 
+  const handleMouseEnter = () => {
+    onHover?.(place.id);
+  };
+
+  const handleMouseLeave = () => {
+    onHover?.(null);
+  };
+
   return (
     <div 
       id={id}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       className={`
         bg-white/60 backdrop-blur-md rounded-2xl border hover:shadow-lg transition-all duration-300 flex flex-col h-full relative overflow-hidden group
         ${isSelected 
