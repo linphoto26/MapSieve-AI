@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from "firebase/auth";
-import { getFirestore, doc, setDoc, onSnapshot, Firestore } from "firebase/firestore";
+import { getFirestore, doc, setDoc, getDoc, addDoc, collection, onSnapshot, Firestore } from "firebase/firestore";
 import { AnalysisResult } from "../types";
 
 export const DEFAULT_FIREBASE_CONFIG = {
@@ -98,5 +98,52 @@ export const subscribeToUserData = (uid: string, callback: (data: AnalysisResult
   } catch (e) {
       console.error("Failed to subscribe:", e);
       return () => {};
+  }
+};
+
+// --- Sharing Features ---
+
+export const createSharedItinerary = async (data: AnalysisResult) => {
+  if (!db) throw new Error("Firebase not initialized");
+  
+  try {
+    // Save to a public collection 'shared_itineraries'
+    // Requires Firestore Rule: match /shared_itineraries/{docId} { allow read: if true; allow create: if request.auth != null; }
+    const docRef = await addDoc(collection(db, "shared_itineraries"), {
+      ...data,
+      sharedAt: new Date(),
+      sharedBy: auth?.currentUser?.displayName || 'Anonymous'
+    });
+    return docRef.id;
+  } catch (e: any) {
+    console.error("Share error:", e);
+    if (e.code === 'permission-denied') {
+      throw new Error("分享失敗：權限不足。請確認您已登入，且後台已開放 'shared_itineraries' 寫入權限。");
+    }
+    throw e;
+  }
+};
+
+export const getSharedItinerary = async (id: string): Promise<AnalysisResult | null> => {
+  if (!db) throw new Error("Firebase not initialized");
+  
+  try {
+    const docRef = doc(db, "shared_itineraries", id);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      // Filter out non-AnalysisResult fields if any
+      const data = docSnap.data();
+      return {
+        places: data.places || [],
+        summary: data.summary || '',
+        suggestedItinerary: data.suggestedItinerary
+      } as AnalysisResult;
+    } else {
+      return null;
+    }
+  } catch (e) {
+    console.error("Fetch shared error:", e);
+    return null;
   }
 };

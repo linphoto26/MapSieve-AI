@@ -23,8 +23,20 @@ const getCategoryColor = (cat: CategoryType) => {
   }
 };
 
-const isValidCoord = (lat: any, lng: any) => {
-  return typeof lat === 'number' && typeof lng === 'number' && Number.isFinite(lat) && Number.isFinite(lng);
+// Ultimate Defense: Strict Validator
+// Returns [lat, lng] if valid, or null if ANY part is NaN/Infinite/Missing
+const validateLatLng = (lat: any, lng: any): [number, number] | null => {
+  const nLat = Number(lat);
+  const nLng = Number(lng);
+  
+  // Check strict finiteness. Leaflet explodes on NaN or Infinity.
+  if (Number.isFinite(nLat) && Number.isFinite(nLng)) {
+    // Basic range check (optional but good practice)
+    if (Math.abs(nLat) <= 90 && Math.abs(nLng) <= 180) {
+        return [nLat, nLng];
+    }
+  }
+  return null;
 };
 
 const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceId, hoveredPlaceId }) => {
@@ -37,20 +49,36 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
     if (!mapRef.current) return;
 
     if (!mapInstance.current) {
-      mapInstance.current = L.map(mapRef.current, {
-        zoomControl: false, // Cleaner look
-      }).setView([23.5, 121], 7);
-      
-      L.control.zoom({
-        position: 'bottomright'
-      }).addTo(mapInstance.current);
+      try {
+        mapInstance.current = L.map(mapRef.current, {
+          zoomControl: false,
+        }).setView([23.5, 121], 7);
+        
+        L.control.zoom({
+          position: 'bottomright'
+        }).addTo(mapInstance.current);
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: 'abcd',
-        maxZoom: 19
-      }).addTo(mapInstance.current);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+          subdomains: 'abcd',
+          maxZoom: 19
+        }).addTo(mapInstance.current);
+      } catch (e) {
+        console.error("Map initialization failed", e);
+      }
     }
+    
+    // Cleanup on unmount
+    return () => {
+        if (mapInstance.current) {
+            try {
+                mapInstance.current.remove();
+                mapInstance.current = null;
+            } catch (e) {
+                // Ignore cleanup errors
+            }
+        }
+    };
   }, []);
 
   // Update Markers
@@ -58,20 +86,26 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
     const map = mapInstance.current;
     if (!map) return;
 
-    // Remove old markers
-    markersMap.current.forEach((marker) => map.removeLayer(marker));
+    // 1. Safe Cleanup
+    markersMap.current.forEach((marker) => {
+        try { map.removeLayer(marker); } catch (e) {}
+    });
     markersMap.current.clear();
 
-    // Filter valid places
-    const validPlaces = places.filter(p => 
-        p.coordinates && isValidCoord(p.coordinates.lat, p.coordinates.lng)
-    );
-    
     const bounds = L.latLngBounds([]);
     let hasValidBounds = false;
 
-    validPlaces.forEach(p => {
+    places.forEach(p => {
       try {
+        // ULTIMATE DEFENSE: Check coordinates before doing ANYTHING
+        const validCoords = p.coordinates ? validateLatLng(p.coordinates.lat, p.coordinates.lng) : null;
+        
+        if (!validCoords) {
+            // Silently skip invalid places to prevent crash
+            return; 
+        }
+
+        const [lat, lng] = validCoords;
         const color = getCategoryColor(p.category);
         
         const svgHtml = `
@@ -80,7 +114,6 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
             </svg>
         `;
 
-        // Standard Icon
         const icon = L.divIcon({
           className: 'custom-pin',
           html: `<div style="width: 32px; height: 32px; transform: translate(-50%, -100%); transition: transform 0.2s ease;">${svgHtml}</div>`,
@@ -89,44 +122,42 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
           popupAnchor: [0, -32]
         });
 
-        // Double check coords again before passing to Leaflet
-        if (p.coordinates && isValidCoord(p.coordinates.lat, p.coordinates.lng)) {
-            const marker = L.marker([p.coordinates.lat, p.coordinates.lng], { icon: icon })
-              .addTo(map);
+        const marker = L.marker([lat, lng], { icon: icon }).addTo(map);
               
-            // Bind Popup
-            marker.bindPopup(`
-                <div style="font-family: -apple-system, system-ui; padding: 4px; min-width: 150px;">
-                  <strong style="font-size: 14px; color: #333;">${p.name}</strong><br/>
-                  <span style="font-size: 12px; color: ${color}; font-weight: 600;">${p.subCategory}</span><br/>
-                  <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + ' ' + p.locationGuess)}" target="_blank" style="font-size: 11px; color: #007AFF; text-decoration: none; display: inline-block; margin-top: 4px;">開啟地圖</a>
-                </div>
-              `);
+        marker.bindPopup(`
+            <div style="font-family: -apple-system, system-ui; padding: 4px; min-width: 150px;">
+                <strong style="font-size: 14px; color: #333;">${p.name}</strong><br/>
+                <span style="font-size: 12px; color: ${color}; font-weight: 600;">${p.subCategory}</span><br/>
+                <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + ' ' + p.locationGuess)}" target="_blank" style="font-size: 11px; color: #007AFF; text-decoration: none; display: inline-block; margin-top: 4px;">開啟地圖</a>
+            </div>
+        `);
 
-            marker.on('click', () => {
-              onSelectPlace(p.id);
-            });
-            
-            markersMap.current.set(p.id, marker);
-            bounds.extend([p.coordinates.lat, p.coordinates.lng]);
-            hasValidBounds = true;
-        }
+        marker.on('click', () => {
+            onSelectPlace(p.id);
+        });
+        
+        markersMap.current.set(p.id, marker);
+        bounds.extend([lat, lng]);
+        hasValidBounds = true;
+
       } catch (err) {
-        console.warn("Skipping invalid marker:", p.name, err);
+        // Catch-all for individual marker failure
+        console.warn("Skipping marker due to error:", p.name);
       }
     });
 
-    // Only fit bounds if we have points and it's likely an initial load or reset
+    // 2. Safe FitBounds
     if (hasValidBounds && !selectedPlaceId) {
        try {
          if (bounds.isValid()) {
             map.fitBounds(bounds, { padding: [50, 50] });
          }
        } catch (e) {
-         console.warn("FitBounds failed:", e);
+         console.warn("FitBounds suppressed:", e);
        }
     }
     
+    // 3. Fix Layout
     setTimeout(() => {
       try { map.invalidateSize(); } catch(e) {}
     }, 200);
@@ -135,33 +166,32 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
 
   // Handle Selection: FlyTo + Popup
   useEffect(() => {
-    if (!selectedPlaceId) return;
+    if (!selectedPlaceId || !mapInstance.current) return;
+    
     const marker = markersMap.current.get(selectedPlaceId);
-    if (marker && mapInstance.current) {
+    if (marker) {
         try {
-            // Ensure marker has valid latlng before flying to avoid crash
             const ll = marker.getLatLng();
-            if (ll && isValidCoord(ll.lat, ll.lng)) {
+            // ULTIMATE DEFENSE: Check coordinates again before flying
+            const valid = validateLatLng(ll.lat, ll.lng);
+            
+            if (valid) {
                 mapInstance.current.flyTo(ll, 15, {
                     duration: 1.5,
                     easeLinearity: 0.25
                 });
                 marker.openPopup();
-            } else {
-                console.warn("Skipping FlyTo: Invalid marker coordinates");
             }
         } catch (e) {
-            console.warn("Map FlyTo failed:", e);
+            console.warn("FlyTo suppressed:", e);
         }
     }
   }, [selectedPlaceId]);
 
-  // Handle Hover: Highlight Marker (Z-Index)
+  // Handle Hover
   useEffect(() => {
-    // Reset all z-indexes
     markersMap.current.forEach((m: any) => m.setZIndexOffset(0));
     
-    // Highlight hovered
     if (hoveredPlaceId) {
         const marker = markersMap.current.get(hoveredPlaceId);
         if (marker) {

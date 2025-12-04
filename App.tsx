@@ -4,7 +4,7 @@ import { AnalysisResult, CategoryType, Place, UserProfile } from './types';
 import PlaceCard from './components/PlaceCard';
 import MapView from './components/MapView';
 import ChatWidget from './components/ChatWidget';
-import { initializeFirebase, loginWithGoogle, logout, onUserChange, saveUserData, subscribeToUserData, isFirebaseInitialized, DEFAULT_FIREBASE_CONFIG } from './services/firebaseService';
+import { initializeFirebase, loginWithGoogle, logout, onUserChange, saveUserData, subscribeToUserData, isFirebaseInitialized, DEFAULT_FIREBASE_CONFIG, createSharedItinerary, getSharedItinerary } from './services/firebaseService';
 import { generateCSV, generateKML, downloadFile } from './services/exportService';
 
 const App: React.FC = () => {
@@ -60,8 +60,11 @@ const App: React.FC = () => {
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
 
-  // Export State
+  // Export & Share State
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareLink, setShareLink] = useState('');
+  const [isSharing, setIsSharing] = useState(false);
 
   // Back To Top State
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -75,6 +78,29 @@ const App: React.FC = () => {
   const saveTimeoutRef = useRef<any>(null);
 
   const isUrlInput = (input: string) => input.trim().match(/^https?:\/\//i);
+
+  // Check URL for shared ID on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shareId = params.get('shareId');
+    if (shareId) {
+        setIsLoading(true);
+        // Clear local storage logic if loading shared? 
+        // We'll overlay shared data.
+        getSharedItinerary(shareId).then(sharedData => {
+            if (sharedData) {
+                setResult(sharedData);
+                // Clear URL params to clean up
+                window.history.replaceState({}, '', window.location.pathname);
+                alert("已成功載入分享的行程！");
+            } else {
+                alert("找不到該分享行程或連結已失效。");
+            }
+        }).finally(() => {
+            setIsLoading(false);
+        });
+    }
+  }, []);
 
   // PERSISTENCE: Save rawInput to localStorage whenever it changes
   useEffect(() => {
@@ -441,6 +467,8 @@ const App: React.FC = () => {
     setHoveredPlaceId(null);
     localStorage.removeItem('mapsieve_result');
     localStorage.removeItem('mapsieve_input');
+    // Clear URL param
+    window.history.replaceState({}, '', window.location.pathname);
   };
 
   const handleResetFilters = () => {
@@ -463,6 +491,25 @@ const App: React.FC = () => {
     const csv = generateCSV(result);
     downloadFile(`mapsieve-export-${Date.now()}.csv`, csv, 'text/csv;charset=utf-8;');
     setIsExportMenuOpen(false);
+  };
+
+  const handleShare = async () => {
+    if (!result) return;
+    setIsSharing(true);
+    try {
+        // Need to be logged in to create? The rule might vary. 
+        // If not logged in, this might fail depending on rules.
+        // We'll attempt it.
+        const id = await createSharedItinerary(result);
+        const url = `${window.location.origin}${window.location.pathname}?shareId=${id}`;
+        setShareLink(url);
+        setIsShareModalOpen(true);
+    } catch (e: any) {
+        alert(e.message || "分享失敗，請稍後再試。");
+    } finally {
+        setIsSharing(false);
+        setIsExportMenuOpen(false);
+    }
   };
 
   const isFilterActive = activeCategory !== 'ALL' || 
@@ -590,12 +637,17 @@ const App: React.FC = () => {
                   <span className="hidden sm:inline text-sm font-medium">匯出</span>
                 </button>
                 {isExportMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow-xl py-1 z-50">
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-xl py-1 z-50">
                       <button onClick={handleExportKML} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">
                         匯出 KML (Google Maps)
                       </button>
                       <button onClick={handleExportCSV} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-600">
                         匯出 CSV (Excel)
+                      </button>
+                      <hr className="my-1 border-gray-100"/>
+                      <button onClick={handleShare} disabled={isSharing} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-between">
+                        <span>{isSharing ? '產生連結中...' : '取得分享連結'}</span>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                       </button>
                   </div>
                 )}
@@ -996,6 +1048,40 @@ const App: React.FC = () => {
 
       {/* Modals */}
       
+      {/* Share Modal */}
+      {isShareModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
+            <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl p-6 text-center">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">連結已建立！</h3>
+                <p className="text-sm text-gray-500 mb-4">分享此連結給朋友，他們就能查看此行程。</p>
+                
+                <div className="flex items-center gap-2 bg-gray-50 rounded-lg border border-gray-200 p-2 mb-4">
+                    <input 
+                        readOnly 
+                        value={shareLink} 
+                        className="bg-transparent w-full text-xs text-gray-600 outline-none"
+                    />
+                    <button 
+                        onClick={() => navigator.clipboard.writeText(shareLink).then(() => alert("已複製！"))}
+                        className="text-systemBlue hover:text-blue-700 text-xs font-bold px-2"
+                    >
+                        複製
+                    </button>
+                </div>
+
+                <button 
+                    onClick={() => setIsShareModalOpen(false)}
+                    className="w-full py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200"
+                >
+                    關閉
+                </button>
+            </div>
+        </div>
+      )}
+
       {/* API Key Modal */}
       {isApiKeyModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center px-4 backdrop-blur-sm">
