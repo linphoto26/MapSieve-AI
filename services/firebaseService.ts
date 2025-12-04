@@ -61,28 +61,42 @@ export const saveUserData = async (uid: string, data: AnalysisResult) => {
       analysisResult: data,
       lastUpdated: new Date()
     }, { merge: true });
-  } catch (e) {
-    console.error("Error saving data:", e);
+  } catch (e: any) {
+    if (e.code === 'permission-denied') {
+        console.warn("Save failed: Permission denied. Please check Firestore security rules.");
+    } else {
+        console.error("Error saving data:", e);
+    }
   }
 };
 
 export const subscribeToUserData = (uid: string, callback: (data: AnalysisResult | null) => void) => {
   if (!db) return () => {};
-  const unsub = onSnapshot(doc(db, "users", uid), 
-    (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        if (data.analysisResult) {
-          callback(data.analysisResult as AnalysisResult);
+  
+  try {
+      const unsub = onSnapshot(doc(db, "users", uid), 
+        (doc) => {
+          if (doc.exists()) {
+            const data = doc.data();
+            if (data.analysisResult) {
+              callback(data.analysisResult as AnalysisResult);
+            }
+          } else {
+            callback(null);
+          }
+        },
+        (error) => {
+          if (error.code === 'permission-denied') {
+             console.warn("Sync paused: Permission denied (Firestore rules missing).");
+             // Do NOT callback(null) here, or it will wipe local data. Just stop syncing.
+          } else {
+             console.error("Firestore sync error:", error);
+          }
         }
-      } else {
-        callback(null);
-      }
-    },
-    (error) => {
-      console.warn("Firestore sync error (likely permissions or offline):", error.code);
-      // Suppress the error to prevent app crash, user will just not sync.
-    }
-  );
-  return unsub;
+      );
+      return unsub;
+  } catch (e) {
+      console.error("Failed to subscribe:", e);
+      return () => {};
+  }
 };

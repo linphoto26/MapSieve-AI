@@ -70,46 +70,58 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
     const bounds = L.latLngBounds([]);
 
     validPlaces.forEach(p => {
-      const color = getCategoryColor(p.category);
-      
-      const svgHtml = `
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" stroke="#FFFFFF" stroke-width="2" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); width: 100%; height: 100%;">
-            <path fill-rule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
-          </svg>
-      `;
-
-      // Standard Icon
-      const icon = L.divIcon({
-        className: 'custom-pin',
-        html: `<div style="width: 32px; height: 32px; transform: translate(-50%, -100%); transition: transform 0.2s ease;">${svgHtml}</div>`,
-        iconSize: [32, 32],
-        iconAnchor: [16, 32],
-        popupAnchor: [0, -32]
-      });
-
-      const marker = L.marker([p.coordinates!.lat, p.coordinates!.lng], { icon: icon })
-        .addTo(map);
+      try {
+        const color = getCategoryColor(p.category);
         
-      // Bind Popup
-      marker.bindPopup(`
-          <div style="font-family: -apple-system, system-ui; padding: 4px; min-width: 150px;">
-            <strong style="font-size: 14px; color: #333;">${p.name}</strong><br/>
-            <span style="font-size: 12px; color: ${color}; font-weight: 600;">${p.subCategory}</span><br/>
-            <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + ' ' + p.locationGuess)}" target="_blank" style="font-size: 11px; color: #007AFF; text-decoration: none; display: inline-block; margin-top: 4px;">開啟地圖</a>
-          </div>
-        `);
+        const svgHtml = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" stroke="#FFFFFF" stroke-width="2" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); width: 100%; height: 100%;">
+              <path fill-rule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+            </svg>
+        `;
 
-      marker.on('click', () => {
-        onSelectPlace(p.id);
-      });
-      
-      markersMap.current.set(p.id, marker);
-      bounds.extend([p.coordinates!.lat, p.coordinates!.lng]);
+        // Standard Icon
+        const icon = L.divIcon({
+          className: 'custom-pin',
+          html: `<div style="width: 32px; height: 32px; transform: translate(-50%, -100%); transition: transform 0.2s ease;">${svgHtml}</div>`,
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+          popupAnchor: [0, -32]
+        });
+
+        // Double check coords again before passing to Leaflet
+        if (!isNaN(p.coordinates!.lat) && !isNaN(p.coordinates!.lng)) {
+            const marker = L.marker([p.coordinates!.lat, p.coordinates!.lng], { icon: icon })
+              .addTo(map);
+              
+            // Bind Popup
+            marker.bindPopup(`
+                <div style="font-family: -apple-system, system-ui; padding: 4px; min-width: 150px;">
+                  <strong style="font-size: 14px; color: #333;">${p.name}</strong><br/>
+                  <span style="font-size: 12px; color: ${color}; font-weight: 600;">${p.subCategory}</span><br/>
+                  <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + ' ' + p.locationGuess)}" target="_blank" style="font-size: 11px; color: #007AFF; text-decoration: none; display: inline-block; margin-top: 4px;">開啟地圖</a>
+                </div>
+              `);
+
+            marker.on('click', () => {
+              onSelectPlace(p.id);
+            });
+            
+            markersMap.current.set(p.id, marker);
+            bounds.extend([p.coordinates!.lat, p.coordinates!.lng]);
+        }
+      } catch (err) {
+        console.warn("Skipping invalid marker:", p.name, err);
+      }
     });
 
     // Only fit bounds if we have points and it's likely an initial load or reset
-    if (validPlaces.length > 0 && !selectedPlaceId) {
-       map.fitBounds(bounds, { padding: [50, 50] });
+    // Added try-catch and isValid check for bounds
+    if (validPlaces.length > 0 && !selectedPlaceId && bounds.isValid()) {
+       try {
+         map.fitBounds(bounds, { padding: [50, 50] });
+       } catch (e) {
+         console.warn("FitBounds failed:", e);
+       }
     }
     
     setTimeout(() => {
@@ -123,14 +135,18 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
     if (!selectedPlaceId) return;
     const marker = markersMap.current.get(selectedPlaceId);
     if (marker && mapInstance.current) {
-        // Ensure marker has valid latlng before flying to avoid crash
-        const ll = marker.getLatLng();
-        if (ll && typeof ll.lat === 'number' && typeof ll.lng === 'number' && !isNaN(ll.lat) && !isNaN(ll.lng)) {
-            mapInstance.current.flyTo(ll, 15, {
-                duration: 1.5,
-                easeLinearity: 0.25
-            });
-            marker.openPopup();
+        try {
+            // Ensure marker has valid latlng before flying to avoid crash
+            const ll = marker.getLatLng();
+            if (ll && typeof ll.lat === 'number' && typeof ll.lng === 'number' && !isNaN(ll.lat) && !isNaN(ll.lng)) {
+                mapInstance.current.flyTo(ll, 15, {
+                    duration: 1.5,
+                    easeLinearity: 0.25
+                });
+                marker.openPopup();
+            }
+        } catch (e) {
+            console.warn("Map FlyTo failed:", e);
         }
     }
   }, [selectedPlaceId]);
