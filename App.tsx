@@ -19,6 +19,45 @@ const LOADING_MESSAGES = [
 ];
 
 const App: React.FC = () => {
+  // --- API KEY CHECK START ---
+  const [hasApiKey, setHasApiKey] = useState(false);
+  const [isCheckingKey, setIsCheckingKey] = useState(true);
+
+  useEffect(() => {
+    const checkKey = async () => {
+      try {
+        if (window.aistudio?.hasSelectedApiKey) {
+          const has = await window.aistudio.hasSelectedApiKey();
+          setHasApiKey(has);
+        } else {
+          // Fallback for environments where process.env.API_KEY is statically defined
+          setHasApiKey(!!process.env.API_KEY);
+        }
+      } catch (e) {
+        console.error("API Key check failed:", e);
+        setHasApiKey(false);
+      } finally {
+        setIsCheckingKey(false);
+      }
+    };
+    checkKey();
+  }, []);
+
+  const handleRequestKey = async () => {
+    if (window.aistudio?.openSelectKey) {
+      try {
+        await window.aistudio.openSelectKey();
+        // Assume success to mitigate race condition where hasSelectedApiKey might lag
+        setHasApiKey(true);
+      } catch (e) {
+        alert("選擇 API Key 發生錯誤，請重試。");
+      }
+    } else {
+        alert("此環境不支援動態 Key 選擇，請檢查環境變數設定。");
+    }
+  };
+  // --- API KEY CHECK END ---
+
   // PERSISTENCE: Initialize state from localStorage if available
   const [rawInput, setRawInput] = useState<string>(() => {
     return localStorage.getItem('mapsieve_input') || '';
@@ -559,6 +598,38 @@ const App: React.FC = () => {
 
   // --- UI RENDER START ---
 
+  if (isCheckingKey) {
+      return (
+          <div className="flex h-screen items-center justify-center bg-gray-50 flex-col gap-4">
+              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-gray-500 text-sm">正在初始化...</p>
+          </div>
+      );
+  }
+
+  if (!hasApiKey) {
+      return (
+          <div className="flex h-screen items-center justify-center bg-gray-50 p-6">
+              <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+                  <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 text-systemBlue">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-800 mb-3">歡迎使用 MapSieve AI</h2>
+                  <p className="text-gray-600 mb-6 leading-relaxed">
+                     請選擇或設定您的 Google Gemini API Key 以開始使用智能行程整理功能。
+                     <br/>
+                     <span className="text-xs text-gray-500 mt-2 block">
+                        請確保選用的專案已啟用計費。 <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="text-systemBlue hover:underline">查看計費說明</a>
+                     </span>
+                  </p>
+                  <button onClick={handleRequestKey} className="w-full bg-systemBlue text-white font-bold py-3 rounded-xl hover:bg-blue-600 transition-colors shadow-lg shadow-blue-200">
+                     選擇 API Key
+                  </button>
+              </div>
+          </div>
+      );
+  }
+
   return (
     <div className="flex flex-col h-screen w-full bg-gray-50 text-gray-800 font-sans overflow-hidden">
       
@@ -976,7 +1047,7 @@ service cloud.firestore {
                     <div className="flex flex-wrap gap-2">
                         <button onClick={() => setAddCategory('AUTO')} className={`px-2 py-1 rounded text-xs border ${addCategory === 'AUTO' ? 'bg-black text-white' : 'bg-white'}`}>自動偵測</button>
                         <button onClick={() => setAddCategory(CategoryType.FOOD)} className={`px-2 py-1 rounded text-xs border ${addCategory === CategoryType.FOOD ? 'bg-blue-100 border-blue-300' : 'bg-white'}`}>美食</button>
-                        <button onClick={() => setAddCategory(CategoryType.SIGHTSEEING)} className={`px-2 py-1 rounded text-xs border ${addCategory === CategoryType.SIGHTSEEING ? 'bg-green-100 border-green-300' : 'bg-white'}`}>景點</button>
+                        <button onClick={() => setAddCategory(CategoryType.SIGHTSEEING)} className={`px-2 py-1 rounded text-xs border ${addCategory === CategoryType.SIGHTSEEING ? 'bg-green-100 border-green-green-300' : 'bg-white'}`}>景點</button>
                     </div>
                 </div>
 
