@@ -1,11 +1,11 @@
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { analyzeMapData, analyzeImage } from './services/geminiService';
-import { AnalysisResult, CategoryType, Place, UserProfile } from './types';
+import { AnalysisResult, CategoryType, Place } from './types';
 import PlaceCard from './components/PlaceCard';
 import SkeletonCard from './components/SkeletonCard';
 import MapView from './components/MapView';
 import ChatWidget from './components/ChatWidget';
-import { initializeFirebase, loginWithGoogle, logout, onUserChange, saveUserData, subscribeToUserData, isFirebaseInitialized, DEFAULT_FIREBASE_CONFIG, createSharedItinerary, getSharedItinerary } from './services/firebaseService';
 import { generateCSV, generateKML, downloadFile } from './services/exportService';
 
 const LOADING_MESSAGES = [
@@ -58,20 +58,8 @@ const App: React.FC = () => {
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
 
-  // Sync / Auth States
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [firebaseConfigStr, setFirebaseConfigStr] = useState('');
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(false);
-  const [loginError, setLoginError] = useState<string | null>(null);
-
-  // Export & Share State
+  // Export State
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const [shareLink, setShareLink] = useState('');
-  const [isSharing, setIsSharing] = useState(false);
 
   // Back To Top State
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -84,9 +72,6 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addFileInputRef = useRef<HTMLInputElement>(null);
   
-  // Debounce save timer
-  const saveTimeoutRef = useRef<any>(null);
-
   // Message rotation effect
   useEffect(() => {
     let interval: any;
@@ -101,28 +86,6 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [isLoading, isAdding]);
 
-  const isUrlInput = (input: string) => input.trim().match(/^https?:\/\//i);
-
-  // Check URL for shared ID on mount
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const shareId = params.get('shareId');
-    if (shareId) {
-        setIsLoading(true);
-        getSharedItinerary(shareId).then(sharedData => {
-            if (sharedData) {
-                setResult(sharedData);
-                window.history.replaceState({}, '', window.location.pathname);
-                alert("已成功載入分享的行程！");
-            } else {
-                alert("找不到該分享行程或連結已失效。");
-            }
-        }).finally(() => {
-            setIsLoading(false);
-        });
-    }
-  }, []);
-
   // PERSISTENCE: Save rawInput to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('mapsieve_input', rawInput);
@@ -136,68 +99,6 @@ const App: React.FC = () => {
       localStorage.removeItem('mapsieve_result');
     }
   }, [result]);
-
-  // Initialize Firebase from LocalStorage or Default Config
-  useEffect(() => {
-    const savedConfig = localStorage.getItem('firebase_config');
-    let configToUse = DEFAULT_FIREBASE_CONFIG;
-
-    if (savedConfig) {
-      setFirebaseConfigStr(savedConfig);
-      try {
-        configToUse = JSON.parse(savedConfig);
-      } catch (e) {
-        console.error("Invalid Firebase Config in LS");
-      }
-    } else {
-      setFirebaseConfigStr(JSON.stringify(DEFAULT_FIREBASE_CONFIG, null, 2));
-    }
-
-    if (initializeFirebase(configToUse)) {
-      console.log("Firebase initialized");
-      const unsubscribe = onUserChange((u) => {
-        if (u) {
-          setUser({
-            uid: u.uid,
-            displayName: u.displayName,
-            email: u.email,
-            photoURL: u.photoURL
-          });
-        } else {
-          setUser(null);
-        }
-      });
-      return () => unsubscribe && unsubscribe();
-    }
-  }, []);
-
-  // Sync Logic: Subscribe to remote changes
-  useEffect(() => {
-    if (!user) return;
-    setIsSyncing(true);
-    const unsub = subscribeToUserData(user.uid, (data) => {
-      if (data) {
-        setIsSyncing(true);
-        setResult(data);
-        setTimeout(() => setIsSyncing(false), 500);
-      } else {
-        setIsSyncing(false);
-      }
-    });
-    return () => unsub();
-  }, [user]);
-
-  // Sync Logic: Save local changes to cloud
-  useEffect(() => {
-    if (!user || !result || isSyncing) return;
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    setIsSaving(true);
-    saveTimeoutRef.current = setTimeout(async () => {
-      await saveUserData(user.uid, result);
-      setIsSaving(false);
-    }, 2000); // Debounce 2 seconds
-    return () => clearTimeout(saveTimeoutRef.current);
-  }, [result, user, isSyncing]);
 
   // Scroll Detection for Back To Top
   useEffect(() => {
@@ -219,43 +120,6 @@ const App: React.FC = () => {
 
   const scrollToTop = () => {
     mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleSaveConfig = () => {
-    try {
-      const config = JSON.parse(firebaseConfigStr);
-      localStorage.setItem('firebase_config', firebaseConfigStr);
-      if (initializeFirebase(config)) {
-         alert("Firebase 設定成功！請重新整理頁面以啟用。");
-         window.location.reload();
-      } else {
-         alert("初始化失敗，請檢查 Config 格式。");
-      }
-    } catch (e) {
-      alert("JSON 格式錯誤，請檢查。");
-    }
-  };
-
-  const handleLogin = async () => {
-    setLoginError(null);
-    try {
-      await loginWithGoogle();
-    } catch (e: any) {
-      console.error("Login Error:", e);
-      if (e.code === 'auth/unauthorized-domain' || (e.message && e.message.includes('unauthorized-domain'))) {
-        setIsSettingsOpen(true);
-        setShowTutorial(true);
-        setLoginError('auth/unauthorized-domain');
-      } else {
-        alert("登入失敗: " + (e.message || "未知錯誤"));
-      }
-    }
-  };
-
-  const handleLogout = async () => {
-    await logout();
-    setUser(null);
-    setResult(null);
   };
 
   // Scroll to selected card when selectedPlaceId changes
@@ -471,22 +335,6 @@ const App: React.FC = () => {
     setIsExportMenuOpen(false);
   };
 
-  const handleShare = async () => {
-    if (!result) return;
-    setIsSharing(true);
-    try {
-        const id = await createSharedItinerary(result);
-        const url = `${window.location.origin}${window.location.pathname}?shareId=${id}`;
-        setShareLink(url);
-        setIsShareModalOpen(true);
-    } catch (e: any) {
-        alert(e.message || "分享失敗，請稍後再試。");
-    } finally {
-        setIsSharing(false);
-        setIsExportMenuOpen(false);
-    }
-  };
-
   const isFilterActive = activeCategory !== 'ALL' || 
                          activeLocation !== 'ALL' || 
                          activeDistrict !== 'ALL' || 
@@ -571,15 +419,10 @@ const App: React.FC = () => {
           </div>
           <h1 className="text-xl font-bold text-gray-800 tracking-tight flex items-center gap-2">
             MapSieve AI 
-            {isSaving && <span className="text-xs text-gray-400 font-normal animate-pulse ml-2 hidden sm:inline">儲存中...</span>}
           </h1>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
-          <button onClick={() => setIsSettingsOpen(true)} className={`p-2 rounded-full transition-colors ${user ? 'text-systemBlue bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-          </button>
-
           {(result || isLoading) && (
             <>
               <div className="relative">
@@ -590,8 +433,6 @@ const App: React.FC = () => {
                   <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-xl py-1 z-50">
                       <button onClick={handleExportKML} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50">匯出 KML</button>
                       <button onClick={handleExportCSV} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50">匯出 CSV</button>
-                      <hr className="my-1 border-gray-100"/>
-                      <button onClick={handleShare} disabled={isSharing} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50">{isSharing ? '...' : '分享行程'}</button>
                   </div>
                 )}
                 {isExportMenuOpen && <div className="fixed inset-0 z-40" onClick={() => setIsExportMenuOpen(false)}></div>}
@@ -880,88 +721,6 @@ const App: React.FC = () => {
         >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
         </button>
-      )}
-
-      {/* Modals ... (Settings, Share, Add) */}
-      {isShareModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl p-6 text-center">
-                <h3 className="text-lg font-bold text-gray-900 mb-2">連結已建立！</h3>
-                <div className="flex items-center gap-2 bg-gray-50 rounded-lg border border-gray-200 p-2 mb-4">
-                    <input readOnly value={shareLink} className="bg-transparent w-full text-xs text-gray-600 outline-none"/>
-                    <button onClick={() => navigator.clipboard.writeText(shareLink).then(() => alert("已複製！"))} className="text-systemBlue font-bold text-xs">複製</button>
-                </div>
-                <button onClick={() => setIsShareModalOpen(false)} className="w-full py-2 bg-gray-100 rounded-lg text-sm font-medium">關閉</button>
-            </div>
-        </div>
-      )}
-
-      {isSettingsOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl p-6">
-            <h3 className="text-xl font-bold mb-6">設定</h3>
-            
-            {/* Tutorial Section */}
-            <div className="mb-6 border-t pt-4">
-               <div className="flex justify-between items-center mb-2">
-                 <h4 className="font-bold text-gray-700">如何取得 Firebase 設定檔？(新手教學)</h4>
-                 <button onClick={() => setShowTutorial(!showTutorial)} className="text-blue-500 text-sm">{showTutorial ? '隱藏' : '顯示'}</button>
-               </div>
-               
-               {loginError === 'auth/unauthorized-domain' && (
-                 <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-700">
-                    <p className="font-bold flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                      網域未授權 (Unauthorized Domain)
-                    </p>
-                    <p className="mt-1">請將以下網址加入 Firebase Console 的 Authorized Domains：</p>
-                    <div className="mt-2 flex items-center gap-2">
-                        <code className="bg-red-100 px-2 py-1 rounded select-all">{window.location.hostname}</code>
-                        <button onClick={() => navigator.clipboard.writeText(window.location.hostname)} className="text-xs bg-white border px-2 py-1 rounded hover:bg-gray-50">複製</button>
-                    </div>
-                 </div>
-               )}
-
-               {showTutorial && (
-                 <div className="text-sm text-gray-600 space-y-3 bg-gray-50 p-4 rounded-lg h-60 overflow-y-auto custom-scrollbar">
-                    <p>1. 前往 <a href="https://console.firebase.google.com/" target="_blank" className="text-blue-600 underline">Firebase Console</a> 並建立新專案。</p>
-                    <p>2. 進入專案設定 (Project Settings)，在 General 頁面下方點擊 "Web" 圖示 (&lt;/&gt; key) 註冊應用程式。</p>
-                    <p>3. 複製 <code>firebaseConfig</code> 物件內容 (包含 apiKey, authDomain 等欄位)。</p>
-                    <p>4. <strong className="text-gray-800">重要：</strong>前往 Authentication &gt; Settings &gt; Authorized domains，點擊 "Add domain"，將目前的網址 <code className="bg-yellow-100 px-1">{window.location.hostname}</code> 加入白名單。</p>
-                    <p>5. 前往 Firestore Database &gt; Rules，將規則修改為：
-                       <pre className="bg-gray-200 p-2 rounded mt-1 text-xs overflow-x-auto">
-{`rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    match /shared_itineraries/{docId} {
-      allow read: if true;
-      allow create: if request.auth != null;
-    }
-  }
-}`}
-                       </pre>
-                    </p>
-                    <p>6. 將複製的 JSON 設定檔貼入下方欄位並儲存。</p>
-                 </div>
-               )}
-            </div>
-
-            <div className="mb-4">
-                <label className="block text-sm font-bold mb-2">Firebase Config (JSON)</label>
-                <textarea 
-                  className="w-full h-32 border rounded p-2 text-xs font-mono" 
-                  value={firebaseConfigStr}
-                  onChange={(e) => setFirebaseConfigStr(e.target.value)}
-                  placeholder='{ "apiKey": "...", ... }'
-                />
-            </div>
-            <button onClick={handleSaveConfig} className="w-full bg-systemBlue text-white py-2 rounded font-bold mb-2">儲存設定</button>
-            <button onClick={() => setIsSettingsOpen(false)} className="w-full bg-gray-100 py-2 rounded">關閉</button>
-          </div>
-        </div>
       )}
 
       {isAddModalOpen && (

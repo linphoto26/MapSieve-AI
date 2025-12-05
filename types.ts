@@ -1,3 +1,4 @@
+
 export enum CategoryType {
   FOOD = 'FOOD',
   DRINK = 'DRINK',
@@ -35,13 +36,6 @@ export interface AnalysisResult {
   places: Place[];
   summary: string;
   suggestedItinerary?: string; // Optional brief suggestion or route plan
-}
-
-export interface UserProfile {
-  uid: string;
-  displayName: string | null;
-  email: string | null;
-  photoURL: string | null;
 }
 
 // Extend Window interface for IDX or AI Studio environments
