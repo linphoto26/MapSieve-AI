@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useRef } from 'react';
 import { Place, CategoryType } from '../types';
 
@@ -150,14 +148,48 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, onHoverPlace, 
         });
 
         const marker = L.marker([lat, lng], { icon: icon });
-              
-        marker.bindPopup(`
-            <div style="font-family: -apple-system, system-ui; padding: 4px; min-width: 150px;">
-                <strong style="font-size: 14px; color: #333;">${p.name}</strong><br/>
-                <span style="font-size: 12px; color: ${color}; font-weight: 600;">${p.subCategory}</span><br/>
-                <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + ' ' + p.locationGuess)}" target="_blank" style="font-size: 11px; color: #007AFF; text-decoration: none; display: inline-block; margin-top: 4px;">開啟地圖</a>
+        
+        // Prepare Popup Content
+        const mapsUrl = p.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + ' ' + p.locationGuess)}`;
+        
+        // Styling vars
+        const bgStyle = `background-color: ${color}15; color: ${color};`; // 15 hex = ~8% opacity
+        
+        const popupHtml = `
+            <div style="font-family: 'SF Pro Text', 'Segoe UI', Roboto, sans-serif; padding: 0; min-width: 200px; max-width: 220px; color: #1f2937;">
+                <!-- Header -->
+                <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px;">
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; line-height: 1.3; color: #111827; padding-right: 8px; flex: 1;">
+                      ${p.name}
+                    </h3>
+                    <span style="flex-shrink: 0; display: inline-block; font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 12px; white-space: nowrap; ${bgStyle} border: 1px solid ${color}30;">
+                        ${p.subCategory}
+                    </span>
+                </div>
+                
+                <!-- Reason / Description (The "Reason") -->
+                <div style="font-size: 13px; color: #4b5563; line-height: 1.5; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;">
+                    ${p.description || '無詳細說明'}
+                </div>
+                
+                <!-- Footer -->
+                <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 8px; border-top: 1px solid #e5e7eb;">
+                     <div style="display: flex; align-items: center; background: #fffbeb; padding: 2px 6px; rounded: 4px;">
+                        <span style="color: #f59e0b; font-size: 12px; margin-right: 3px;">★</span>
+                        <span style="font-size: 12px; font-weight: 700; color: #92400e;">${p.ratingPrediction}</span>
+                     </div>
+                     
+                     <a href="${mapsUrl}" target="_blank" style="display: inline-flex; align-items: center; font-size: 12px; color: #2563EB; text-decoration: none; font-weight: 600; padding: 4px 8px; border-radius: 6px; background-color: #eff6ff;">
+                        前往地圖
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width: 12px; height: 12px; margin-left: 4px;">
+                          <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                     </a>
+                </div>
             </div>
-        `);
+        `;
+              
+        marker.bindPopup(popupHtml);
 
         marker.on('click', () => {
             onSelectPlace(p.id);
