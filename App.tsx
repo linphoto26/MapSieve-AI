@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { analyzeMapData, analyzeImage } from './services/geminiService';
 import { AnalysisResult, CategoryType, Place } from './types';
@@ -48,12 +49,6 @@ const App: React.FC = () => {
   const [sortBy, setSortBy] = useState<'DEFAULT' | 'PRICE_ASC' | 'RATING_DESC' | 'LOCATION_ASC' | 'SUBCATEGORY_ASC'>('DEFAULT');
   const [searchQuery, setSearchQuery] = useState<string>('');
   
-  // State for "Add More" feature
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [addInput, setAddInput] = useState('');
-  const [isAdding, setIsAdding] = useState(false);
-  const [addCategory, setAddCategory] = useState<CategoryType | 'AUTO'>('AUTO');
-
   // State for Selection Highlight
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
@@ -70,12 +65,11 @@ const App: React.FC = () => {
 
   // Ref for file input
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const addFileInputRef = useRef<HTMLInputElement>(null);
   
   // Message rotation effect
   useEffect(() => {
     let interval: any;
-    if (isLoading || isAdding) {
+    if (isLoading) {
       let i = 0;
       setLoadingMessage(LOADING_MESSAGES[0]);
       interval = setInterval(() => {
@@ -84,7 +78,7 @@ const App: React.FC = () => {
       }, 2500);
     }
     return () => clearInterval(interval);
-  }, [isLoading, isAdding]);
+  }, [isLoading]);
 
   // PERSISTENCE: Save rawInput to localStorage whenever it changes
   useEffect(() => {
@@ -218,73 +212,6 @@ const App: React.FC = () => {
         setIsLoading(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
     }
-  };
-
-  const handleAddImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsAdding(true);
-    setError(null);
-    try {
-        const base64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-                const result = reader.result as string;
-                const base64Data = result.split(',')[1];
-                resolve(base64Data);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-        const newData = await analyzeImage(base64, file.type);
-        setResult(prev => {
-            if (!prev) return newData;
-            return {
-                ...prev,
-                places: [...prev.places, ...newData.places],
-                summary: prev.summary,
-                suggestedItinerary: prev.suggestedItinerary
-            };
-        });
-        closeAddModal();
-    } catch (err: any) {
-        alert(err.message || "圖片分析失敗。");
-    } finally {
-        setIsAdding(false);
-        if (addFileInputRef.current) addFileInputRef.current.value = '';
-    }
-  };
-
-  const handleAppendAnalyze = async () => {
-    if (!addInput.trim()) return;
-    setIsAdding(true);
-    setError(null); 
-    try {
-      const categoryHint = addCategory === 'AUTO' ? undefined : addCategory;
-      const newData = await analyzeMapData(addInput, categoryHint);
-      setResult(prev => {
-        if (!prev) return newData;
-        return {
-          ...prev,
-          places: [...prev.places, ...newData.places],
-          summary: prev.summary || newData.summary,
-          suggestedItinerary: newData.suggestedItinerary 
-            ? (prev.suggestedItinerary ? prev.suggestedItinerary + "\n\n" + newData.suggestedItinerary : newData.suggestedItinerary)
-            : prev.suggestedItinerary
-        };
-      });
-      closeAddModal();
-    } catch (err: any) {
-      alert(err.message || "新增地點失敗，請稍後再試。");
-    } finally {
-        setIsAdding(false);
-    }
-  };
-
-  const closeAddModal = () => {
-    setIsAddModalOpen(false);
-    setAddInput('');
-    setAddCategory('AUTO');
   };
 
   const handleRemovePlace = (id: string) => {
@@ -427,7 +354,7 @@ const App: React.FC = () => {
             <>
               <div className="relative">
                 <button disabled={isLoading} onClick={() => setIsExportMenuOpen(!isExportMenuOpen)} className="p-2 text-gray-500 hover:text-systemBlue hover:bg-gray-100 rounded-lg disabled:opacity-50">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                 </button>
                 {isExportMenuOpen && (
                   <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-xl py-1 z-50">
@@ -439,11 +366,6 @@ const App: React.FC = () => {
               </div>
 
               <div className="h-6 w-px bg-gray-300 hidden sm:block"></div>
-
-              <button disabled={isLoading} onClick={() => setIsAddModalOpen(true)} className="px-4 py-2 bg-systemBlue hover:bg-blue-600 text-white rounded-lg text-sm font-medium shadow-sm flex items-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed">
-                <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
-                <span className="hidden sm:inline">新增地點</span>
-              </button>
               
               <button disabled={isLoading} onClick={handleReset} className="px-4 py-2 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium disabled:opacity-50">重置</button>
             </>
@@ -654,7 +576,6 @@ const App: React.FC = () => {
                                                                 id={`card-${place.id}`}
                                                                 place={place} 
                                                                 onDelete={handleRemovePlace}
-                                                                onAddPlace={() => setIsAddModalOpen(true)}
                                                                 isSelected={selectedPlaceId === place.id}
                                                                 isHovered={hoveredPlaceId === place.id}
                                                                 onHover={setHoveredPlaceId}
@@ -673,7 +594,6 @@ const App: React.FC = () => {
                                                     id={`card-${place.id}`}
                                                     place={place} 
                                                     onDelete={handleRemovePlace}
-                                                    onAddPlace={() => setIsAddModalOpen(true)}
                                                     isSelected={selectedPlaceId === place.id}
                                                     isHovered={hoveredPlaceId === place.id}
                                                     onHover={setHoveredPlaceId}
@@ -686,21 +606,6 @@ const App: React.FC = () => {
                             ) : (
                                 <div className="flex flex-col items-center justify-center py-10 md:py-20 text-gray-400">
                                     <p>找不到符合條件的地點</p>
-                                </div>
-                            )}
-
-                            {/* Append Loading State: Show skeletons at bottom */}
-                            {isAdding && (
-                                <div className="mt-6 pt-6 border-t border-gray-100">
-                                    <div className="flex items-center gap-2 mb-4 text-blue-600 animate-pulse">
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-                                        <span className="text-sm font-bold">{loadingMessage}</span>
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
-                                        {Array.from({ length: 2 }).map((_, i) => (
-                                            <SkeletonCard key={`skeleton-append-${i}`} />
-                                        ))}
-                                    </div>
                                 </div>
                             )}
                         </div>
@@ -721,37 +626,6 @@ const App: React.FC = () => {
         >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
         </button>
-      )}
-
-      {isAddModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-           <div className="bg-white w-full max-w-md rounded-2xl shadow-xl p-6">
-                <h3 className="text-lg font-bold mb-4">新增地點</h3>
-                <textarea className="w-full h-32 border p-3 rounded mb-4" value={addInput} onChange={(e) => setAddInput(e.target.value)} placeholder="輸入網址或文字..." />
-                
-                <div className="mb-4">
-                    <label className="block text-xs font-bold text-gray-500 mb-1">指定類別 (選填)</label>
-                    <div className="flex flex-wrap gap-2">
-                        <button onClick={() => setAddCategory('AUTO')} className={`px-2 py-1 rounded text-xs border ${addCategory === 'AUTO' ? 'bg-black text-white' : 'bg-white'}`}>自動偵測</button>
-                        <button onClick={() => setAddCategory(CategoryType.FOOD)} className={`px-2 py-1 rounded text-xs border ${addCategory === CategoryType.FOOD ? 'bg-blue-100 border-blue-300' : 'bg-white'}`}>美食</button>
-                        <button onClick={() => setAddCategory(CategoryType.SIGHTSEEING)} className={`px-2 py-1 rounded text-xs border ${addCategory === CategoryType.SIGHTSEEING ? 'bg-green-100 border-green-green-300' : 'bg-white'}`}>景點</button>
-                    </div>
-                </div>
-
-                <div className="flex gap-2">
-                    <button onClick={() => addFileInputRef.current?.click()} className="flex-1 bg-white border border-gray-200 text-gray-700 py-2 rounded flex items-center justify-center gap-1 hover:bg-gray-50">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                        圖片
-                    </button>
-                    <input type="file" ref={addFileInputRef} className="hidden" accept="image/*" onChange={handleAddImageUpload} />
-                    
-                    <button onClick={closeAddModal} className="flex-1 bg-gray-100 py-2 rounded hover:bg-gray-200">取消</button>
-                    <button onClick={handleAppendAnalyze} disabled={isAdding} className="flex-1 bg-systemBlue text-white py-2 rounded hover:bg-blue-600 disabled:bg-gray-300">
-                        {isAdding ? '處理中...' : '新增'}
-                    </button>
-                </div>
-           </div>
-        </div>
       )}
 
     </div>

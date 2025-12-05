@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, GenerateContentResponse, Chat } from "@google/genai";
 import { AnalysisResult, CategoryType, Place } from "../types";
 
@@ -80,7 +81,6 @@ const JSON_STRUCTURE_PROMPT = `
     Structure:
     {
       "summary": "string (One sentence summary in Traditional Chinese)",
-      "suggestedItinerary": "string (Optional daily route plan extracted from the text. e.g. 'Day 1: A -> B -> C')",
       "places": [
         {
           "name": "string (Full specific name, e.g. 'Starbucks Shibuya Tsutaya' not just 'Starbucks')",
@@ -228,7 +228,7 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
       
       *** PHASE 1: CONTENT EXTRACTION ***
       - **Scope**: specific recommended places in the main article body. IGNORE sidebars, footers, "You might also like", and ads.
-      - **Itinerary**: Extract chronological markers ("Day 1", "Morning") into 'suggestedItinerary'.
+      - **Focus**: Extract only the places mentioned. Do not create a schedule.
       
       *** PHASE 2: ENTITY RESOLUTION & VALIDATION (CRITICAL) ***
       - **Name Precision**:
@@ -256,7 +256,7 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
   else if (isHtml) {
     prompt = `
       You are an HTML Parser for Travel Data.
-      Parse this HTML source code to extract places and itinerary.
+      Parse this HTML source code to extract places.
       HTML Input: "${trimmedInput.substring(0, 30000)}"
       ${categoryContext}
       
@@ -264,8 +264,7 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
       1. Identify the recurring DOM structure (e.g. repeating <div class="place-card"> or <li> items).
       2. Extract Name, Address, Opening Hours, and Description from each item.
       3. **Images & Links**: Look for <img src="..."> and <a href="..."> tags within the place block. Extract them to 'imageUri' and 'websiteUri'.
-      4. Look for H1-H6 tags to identify sections and itinerary days.
-      5. Ignore navigation menus, footers, and comment sections.
+      4. Ignore navigation menus, footers, and comment sections.
       
       ${JSON_STRUCTURE_PROMPT}
       Output in Traditional Chinese (zh-TW).
