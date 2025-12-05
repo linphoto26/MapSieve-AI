@@ -25,37 +25,52 @@ const App: React.FC = () => {
   const [isCheckingKey, setIsCheckingKey] = useState(true);
 
   useEffect(() => {
-    const checkKey = async () => {
-      try {
-        if (window.aistudio?.hasSelectedApiKey) {
-          const has = await window.aistudio.hasSelectedApiKey();
-          setHasApiKey(has);
-        } else {
-          // Fallback for environments where process.env.API_KEY is statically defined
-          // !!undefined becomes false, which is correct.
-          setHasApiKey(!!process.env.API_KEY);
+    let attempts = 0;
+    const checkApiKeyStatus = async () => {
+        // 1. Check if injected statically (e.g. .env or build time replacement)
+        if (process.env.API_KEY && process.env.API_KEY !== 'undefined') {
+            setHasApiKey(true);
+            setIsCheckingKey(false);
+            return;
         }
-      } catch (e) {
-        console.error("API Key check failed:", e);
-        setHasApiKey(false);
-      } finally {
-        setIsCheckingKey(false);
-      }
+
+        // 2. Check dynamic injection (AI Studio / IDX)
+        if (window.aistudio && window.aistudio.hasSelectedApiKey) {
+            try {
+                const has = await window.aistudio.hasSelectedApiKey();
+                if (has) {
+                    setHasApiKey(true);
+                    setIsCheckingKey(false);
+                    return;
+                }
+            } catch (e) {
+                console.warn("API Key check error", e);
+            }
+        }
+
+        // 3. Retry logic: Environment injection might be slightly delayed
+        if (attempts < 5) {
+            attempts++;
+            setTimeout(checkApiKeyStatus, 500);
+        } else {
+            // Stop checking, show Key Selection Screen
+            setIsCheckingKey(false);
+        }
     };
-    checkKey();
+    checkApiKeyStatus();
   }, []);
 
   const handleRequestKey = async () => {
     if (window.aistudio?.openSelectKey) {
       try {
         await window.aistudio.openSelectKey();
-        // Assume success to mitigate race condition where hasSelectedApiKey might lag
+        // Mitigate race condition: Assume success immediately upon return
         setHasApiKey(true);
       } catch (e) {
-        alert("選擇 API Key 發生錯誤，請重試。");
+        alert("選擇 API Key 時發生錯誤，請重試。");
       }
     } else {
-        alert("偵測不到環境支援。如果您在本地開發，請在 .env 檔案中設定 API_KEY 並重啟伺服器。");
+        alert("此環境不支援動態 API Key 選擇。\n\n如果您正在本地開發 (Localhost)，請在專案根目錄建立 .env 檔案並設定 API_KEY。\n\n範例：\nAPI_KEY=AIzaSy...");
     }
   };
   // --- API KEY CHECK END ---
@@ -603,57 +618,38 @@ const App: React.FC = () => {
   if (isCheckingKey) {
       return (
           <div className="flex h-screen items-center justify-center bg-gray-50 flex-col gap-4">
-              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-gray-500 text-sm">正在初始化...</p>
+              <div className="w-10 h-10 border-4 border-systemBlue border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-gray-500 text-sm font-medium">正在初始化系統...</p>
           </div>
       );
   }
 
   if (!hasApiKey) {
-      const isAIStudio = typeof window !== 'undefined' && !!window.aistudio;
-
       return (
-          <div className="flex h-screen items-center justify-center bg-gray-50 p-6">
-              <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
-                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 ${isAIStudio ? 'bg-blue-50 text-systemBlue' : 'bg-orange-50 text-systemOrange'}`}>
-                    {isAIStudio ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
-                    ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                    )}
+          <div className="flex h-screen items-center justify-center bg-gray-50 p-6 animate-fade-in">
+              <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center border border-gray-100">
+                  <div className="w-16 h-16 bg-blue-50 text-systemBlue rounded-full flex items-center justify-center mx-auto mb-6">
+                     <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
                   </div>
                   
-                  <h2 className="text-2xl font-bold text-gray-800 mb-3">
-                    {isAIStudio ? "歡迎使用 MapSieve AI" : "尚未設定 API Key"}
-                  </h2>
+                  <h2 className="text-2xl font-bold text-gray-800 mb-3">歡迎使用 MapSieve AI</h2>
                   
-                  <div className="text-gray-600 mb-6 leading-relaxed text-sm">
-                     {isAIStudio ? (
-                        <p>請選擇或設定您的 Google Gemini API Key 以開始使用。</p>
-                     ) : (
-                        <div className="space-y-3">
-                            <p>此環境 (如 Vercel) 不支援動態 Key 選擇。請手動設定環境變數。</p>
-                            <div className="bg-gray-100 border border-gray-200 p-3 rounded-lg text-left text-xs font-mono text-gray-700 break-all">
-                                API_KEY=AIzaSy...
-                            </div>
-                            <p>設定後請重新部署 (Redeploy) 或重啟伺服器。</p>
-                        </div>
-                     )}
-                     
-                     <span className="text-xs text-gray-400 mt-4 block">
-                        請確保專案已啟用計費。<a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="text-systemBlue hover:underline">說明</a>
-                     </span>
-                  </div>
+                  <p className="text-gray-600 mb-8 leading-relaxed text-sm">
+                     為了開始整理您的地圖清單，請先設定 Google Gemini API Key。<br/>
+                     <span className="text-xs text-gray-400 mt-2 block">(基於安全考量，請使用下方按鈕進行安全選取，無需手動輸入)</span>
+                  </p>
 
-                  {isAIStudio ? (
-                      <button onClick={handleRequestKey} className="w-full bg-systemBlue text-white font-bold py-3 rounded-xl hover:bg-blue-600 transition-colors shadow-lg shadow-blue-200">
-                         選擇 API Key
-                      </button>
-                  ) : (
-                      <button onClick={() => window.location.reload()} className="w-full bg-white border border-gray-300 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-50 transition-colors">
-                         已完成設定，重新整理
-                      </button>
-                  )}
+                  <button onClick={handleRequestKey} className="w-full bg-systemBlue text-white font-bold py-3.5 rounded-xl hover:bg-blue-600 transition-all shadow-lg shadow-blue-200 flex items-center justify-center gap-2 group">
+                     <span>選擇或設定 API Key</span>
+                     <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                  </button>
+                  
+                  <div className="mt-6 pt-6 border-t border-gray-100">
+                    <p className="text-xs text-gray-400 mb-2">無法使用按鈕？</p>
+                    <p className="text-xs text-gray-500">
+                        若您在本地環境開發，請確認根目錄下的 <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-700 font-mono">.env</code> 檔案已包含 <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-700 font-mono">API_KEY</code> 設定。
+                    </p>
+                  </div>
               </div>
           </div>
       );
