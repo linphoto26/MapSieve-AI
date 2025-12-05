@@ -152,36 +152,35 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, onHoverPlace, 
         // Prepare Popup Content
         const mapsUrl = p.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + ' ' + p.locationGuess)}`;
         
-        // Styling vars
-        const bgStyle = `background-color: ${color}15; color: ${color};`; // 15 hex = ~8% opacity
-        
+        // MVP SIMPLIFIED POPUP: Name + Highlights + AI Reason only.
         const popupHtml = `
-            <div style="font-family: 'SF Pro Text', 'Segoe UI', Roboto, sans-serif; padding: 0; min-width: 200px; max-width: 220px; color: #1f2937;">
-                <!-- Header -->
-                <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px;">
-                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; line-height: 1.3; color: #111827; padding-right: 8px; flex: 1;">
-                      ${p.name}
-                    </h3>
-                    <span style="flex-shrink: 0; display: inline-block; font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 12px; white-space: nowrap; ${bgStyle} border: 1px solid ${color}30;">
-                        ${p.subCategory}
-                    </span>
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-width: 200px; max-width: 240px; color: #1f2937;">
+                <!-- Header: Name only -->
+                <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 700; color: #111827; line-height: 1.3;">
+                  ${p.name}
+                </h3>
+
+                <!-- Highlights/Tags (Visual Keywords) -->
+                ${p.tags && p.tags.length > 0 ? `
+                  <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;">
+                    ${p.tags.slice(0, 3).map(tag => `
+                      <span style="font-size: 11px; font-weight: 600; color: #854d0e; background-color: #fef9c3; padding: 2px 6px; border-radius: 4px;">
+                        ${tag}
+                      </span>
+                    `).join('')}
+                  </div>
+                ` : ''}
+                
+                <!-- AI Reason (Description) -->
+                <div style="font-size: 13px; color: #374151; line-height: 1.5; margin-bottom: 10px; background: #f9fafb; padding: 8px; border-radius: 6px; border-left: 3px solid ${color};">
+                    ${p.description || 'AI 推薦地點'}
                 </div>
                 
-                <!-- Reason / Description (The "Reason") -->
-                <div style="font-size: 13px; color: #4b5563; line-height: 1.5; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;">
-                    ${p.description || '無詳細說明'}
-                </div>
-                
-                <!-- Footer -->
-                <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 8px; border-top: 1px solid #e5e7eb;">
-                     <div style="display: flex; align-items: center; background: #fffbeb; padding: 2px 6px; rounded: 4px;">
-                        <span style="color: #f59e0b; font-size: 12px; margin-right: 3px;">★</span>
-                        <span style="font-size: 12px; font-weight: 700; color: #92400e;">${p.ratingPrediction}</span>
-                     </div>
-                     
-                     <a href="${mapsUrl}" target="_blank" style="display: inline-flex; align-items: center; font-size: 12px; color: #2563EB; text-decoration: none; font-weight: 600; padding: 4px 8px; border-radius: 6px; background-color: #eff6ff;">
-                        前往地圖
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width: 12px; height: 12px; margin-left: 4px;">
+                <!-- Minimal Footer: Link only -->
+                <div style="text-align: right;">
+                     <a href="${mapsUrl}" target="_blank" style="display: inline-flex; align-items: center; font-size: 12px; color: #2563EB; text-decoration: none; font-weight: 500;">
+                        查看詳情
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width: 12px; height: 12px; margin-left: 2px;">
                           <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
                         </svg>
                      </a>

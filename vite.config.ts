@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 // ==============================================
 // 請在下方引號中貼上您的 Google Gemini API Key
 // ==============================================
-const HARDCODED_KEY = ""; 
+const HARDCODED_KEY = "AIzaSyCiNjqeW2cYGTE8ViQDcz3_XfQUFJ0EngU"; 
 
 export default defineConfig(({ mode }) => {
   // Cast process to any to avoid TypeScript error about missing 'cwd' property on Process type
