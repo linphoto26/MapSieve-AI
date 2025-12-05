@@ -9,12 +9,12 @@ import ChatWidget from './components/ChatWidget';
 import { generateCSV, generateKML, downloadFile } from './services/exportService';
 
 const LOADING_MESSAGES = [
-  "正在讀取您的清單...",
-  "AI 正在識別地點資訊...",
-  "正在搜尋 Google Maps 評論與評分...",
-  "正在規劃最佳行程路線...",
-  "正在整理分類標籤...",
-  "快完成了，請稍候..."
+  "AI 正在閱讀您的遊記內容...",
+  "正在挖掘文章中提到的隱藏景點...",
+  "正在分析作者的推薦理由與評價...",
+  "正在為您標記地圖座標...",
+  "正在整理景點分類標籤...",
+  "地圖即將生成，請稍候..."
 ];
 
 const App: React.FC = () => {
@@ -418,7 +418,7 @@ const App: React.FC = () => {
              </svg>
           </div>
           <h1 className="text-xl font-bold text-gray-800 tracking-tight flex items-center gap-2">
-            MapSieve AI 
+            MapSieve AI <span className="text-gray-400 font-light hidden sm:inline">|</span> <span className="text-gray-500 font-normal text-lg hidden sm:inline">遊記轉地圖</span>
           </h1>
         </div>
 
@@ -459,7 +459,7 @@ const App: React.FC = () => {
            {/* Desktop Filter Sidebar */}
            <div className="p-4 flex flex-col h-full">
               <div className="mb-4">
-                <input type="text" className="w-full bg-gray-100 border-none rounded-lg py-2 px-3 text-sm" placeholder="搜尋..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} disabled={isLoading} />
+                <input type="text" className="w-full bg-gray-100 border-none rounded-lg py-2 px-3 text-sm" placeholder="篩選列表..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} disabled={isLoading} />
               </div>
               <div className="bg-gray-100 p-1 rounded-lg flex mb-4">
                 <button onClick={() => setViewMode('CATEGORY')} className={`flex-1 py-1.5 text-xs font-semibold rounded-md ${viewMode === 'CATEGORY' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>分類</button>
@@ -557,12 +557,12 @@ const App: React.FC = () => {
                                     <div className="bg-blue-100 p-2 rounded-xl">
                                         <svg className="w-6 h-6 text-systemBlue" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
                                     </div>
-                                    <h2 className="text-2xl font-bold text-gray-800">建立新行程</h2>
+                                    <h2 className="text-2xl font-bold text-gray-800">遊記轉換器</h2>
                                 </div>
-                                <p className="text-gray-600 mb-4">輸入 Google Maps 連結、部落格文章網址，或貼上純文字內容。</p>
+                                <p className="text-gray-600 mb-4">將網路遊記、部落格文章或旅遊筆記，一鍵轉換為可互動的行程地圖。AI 會自動標註文中提到的餐廳、景點與住宿。</p>
                                 <textarea
                                     className="w-full h-40 p-4 text-base text-gray-800 placeholder-gray-400 bg-gray-50 border border-gray-200 focus:border-systemBlue focus:ring-2 focus:ring-blue-100 rounded-xl resize-none"
-                                    placeholder="在此貼上..."
+                                    placeholder="貼上部落格連結，或直接複製遊記內容貼在這裡..."
                                     value={rawInput}
                                     onChange={(e) => setRawInput(e.target.value)}
                                 />
@@ -570,12 +570,12 @@ const App: React.FC = () => {
                                     <div className="flex items-center gap-2 w-full sm:w-auto">
                                         <button onClick={() => fileInputRef.current?.click()} className="flex-1 sm:flex-none text-sm font-medium text-gray-600 hover:text-systemBlue bg-white border border-gray-200 px-4 py-2.5 rounded-lg flex items-center justify-center gap-2">
                                             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                            上傳圖片
+                                            上傳截圖
                                         </button>
                                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                                     </div>
                                     <button onClick={handleAnalyze} disabled={isLoading || !rawInput.trim()} className={`w-full sm:w-auto px-8 py-2.5 rounded-lg text-sm font-bold text-white shadow-sm transition-all ${isLoading || !rawInput.trim() ? 'bg-gray-300 cursor-not-allowed' : 'bg-systemBlue hover:bg-blue-600'}`}>
-                                        {isLoading ? '分析中...' : '開始分析'}
+                                        {isLoading ? '處理中...' : '生成地圖'}
                                     </button>
                                 </div>
                                 {error && <div className="mt-6 px-4 py-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}

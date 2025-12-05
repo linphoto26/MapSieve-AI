@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, GenerateContentResponse, Chat } from "@google/genai";
 import { AnalysisResult, CategoryType, Place } from "../types";
 
@@ -85,7 +86,7 @@ const JSON_STRUCTURE_PROMPT = `
           "name": "string (Full specific name, e.g. 'Starbucks Shibuya Tsutaya' not just 'Starbucks')",
           "category": "FOOD" | "DRINK" | "SIGHTSEEING" | "SHOPPING" | "ACTIVITY" | "LODGING" | "OTHER",
           "subCategory": "string (e.g. 拉麵店)",
-          "description": "string (Traditional Chinese summary of why it is recommended)",
+          "description": "string (Extract the author's SPECIFIC reason for recommendation, unique vibe, or key advice from the text in Traditional Chinese. e.g., 'Coffee is expensive but view is great', 'Quiet atmosphere good for reading'. Do NOT write generic descriptions.)",
           "ratingPrediction": number (1-5),
           "priceLevel": "Free" | "$" | "$$" | "$$$" | "$$$$" | "Unknown",
           "tags": ["string"],
@@ -244,6 +245,7 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
       - **Images**: Find the <img> tag visually associated with the place header.
       - **Links**: Extract official websites or booking links into 'websiteUri'.
       - **Metadata**: specific address and opening hours.
+      - **AI Description**: Extract the AUTHOR'S specific comments, vibes, or reasons for recommendation. Do not just generic descriptions.
       
       ${JSON_STRUCTURE_PROMPT}
       Output in Traditional Chinese (zh-TW).
@@ -280,6 +282,7 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
       Use the Google Maps tool to VERIFY these places.
       - If a place exists on Google Maps, use its EXACT coordinates, correct official name, full address, and opening hours if available.
       - DO NOT invent a googleMapsUri unless the tool explicitly provides a deep link.
+      - **Description**: Focus on why the text author recommends this place.
       
       ${JSON_STRUCTURE_PROMPT}
       Output in Traditional Chinese (zh-TW).
