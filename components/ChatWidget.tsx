@@ -26,8 +26,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ places }) => {
   useEffect(() => {
     // Reset chat when places change significantly, or just init once
     if (places.length > 0) {
-      chatSession.current = createChatSession(places);
-      setMessages([{ id: 'init', role: 'model', text: '你好！我是你的 AI 旅遊顧問。關於這份行程清單，有什麼我可以幫你的嗎？' }]);
+      try {
+        chatSession.current = createChatSession(places);
+        setMessages([{ id: 'init', role: 'model', text: '你好！我是你的 AI 旅遊顧問。關於這份行程清單，有什麼我可以幫你的嗎？' }]);
+      } catch (e) {
+        console.warn("Chat session failed to initialize:", e);
+        chatSession.current = null;
+        setMessages([{ id: 'error', role: 'model', text: '⚠️ 無法啟動 AI 顧問 (API Key 未設定或無效)。請檢查設定後重試。' }]);
+      }
     }
   }, [places]);
 
@@ -40,7 +46,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ places }) => {
   }, [messages, isOpen]);
 
   const handleSend = async () => {
-    if (!input.trim() || !chatSession.current) return;
+    if (!input.trim()) return;
+    
+    if (!chatSession.current) {
+        setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: '⚠️ 聊天功能目前無法使用。' }]);
+        return;
+    }
 
     const userMsg = input.trim();
     setInput('');

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { analyzeMapData, analyzeImage } from './services/geminiService';
 import { AnalysisResult, CategoryType, Place, UserProfile } from './types';
@@ -53,7 +54,7 @@ const App: React.FC = () => {
         alert("選擇 API Key 發生錯誤，請重試。");
       }
     } else {
-        alert("此環境不支援動態 Key 選擇，請檢查環境變數設定。");
+        alert("偵測不到環境支援。如果您在本地開發，請在 .env 檔案中設定 API_KEY 並重啟伺服器。");
     }
   };
   // --- API KEY CHECK END ---
