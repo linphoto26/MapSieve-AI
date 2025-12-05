@@ -1,12 +1,17 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
+// ==============================================
+// 請在下方引號中貼上您的 Google Gemini API Key
+// ==============================================
+const HARDCODED_KEY = ""; 
+
 export default defineConfig(({ mode }) => {
   // Cast process to any to avoid TypeScript error about missing 'cwd' property on Process type
   const env = loadEnv(mode, (process as any).cwd(), '');
   
-  // Safely define process.env.API_KEY.
-  const apiKey = env.API_KEY || process.env.API_KEY;
+  // 優先使用寫死的 Key，若無則尋找環境變數
+  const apiKey = HARDCODED_KEY || env.API_KEY || process.env.API_KEY;
   
   // If API_KEY exists, stringify it for injection. 
   // If NOT, set it to the string "undefined" so the client code `process.env.API_KEY` evaluates to real `undefined`.

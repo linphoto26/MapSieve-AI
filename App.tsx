@@ -1,5 +1,3 @@
-
-
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { analyzeMapData, analyzeImage } from './services/geminiService';
 import { AnalysisResult, CategoryType, Place, UserProfile } from './types';
@@ -20,61 +18,6 @@ const LOADING_MESSAGES = [
 ];
 
 const App: React.FC = () => {
-  // --- API KEY CHECK START ---
-  const [hasApiKey, setHasApiKey] = useState(false);
-  const [isCheckingKey, setIsCheckingKey] = useState(true);
-
-  useEffect(() => {
-    let attempts = 0;
-    const checkApiKeyStatus = async () => {
-        // 1. Check if injected statically (e.g. .env or build time replacement)
-        if (process.env.API_KEY && process.env.API_KEY !== 'undefined') {
-            setHasApiKey(true);
-            setIsCheckingKey(false);
-            return;
-        }
-
-        // 2. Check dynamic injection (AI Studio / IDX)
-        if (window.aistudio && window.aistudio.hasSelectedApiKey) {
-            try {
-                const has = await window.aistudio.hasSelectedApiKey();
-                if (has) {
-                    setHasApiKey(true);
-                    setIsCheckingKey(false);
-                    return;
-                }
-            } catch (e) {
-                console.warn("API Key check error", e);
-            }
-        }
-
-        // 3. Retry logic: Environment injection might be slightly delayed
-        if (attempts < 5) {
-            attempts++;
-            setTimeout(checkApiKeyStatus, 500);
-        } else {
-            // Stop checking, show Key Selection Screen
-            setIsCheckingKey(false);
-        }
-    };
-    checkApiKeyStatus();
-  }, []);
-
-  const handleRequestKey = async () => {
-    if (window.aistudio?.openSelectKey) {
-      try {
-        await window.aistudio.openSelectKey();
-        // Mitigate race condition: Assume success immediately upon return
-        setHasApiKey(true);
-      } catch (e) {
-        alert("選擇 API Key 時發生錯誤，請重試。");
-      }
-    } else {
-        alert("此環境不支援動態 API Key 選擇。\n\n如果您正在本地開發 (Localhost)，請在專案根目錄建立 .env 檔案並設定 API_KEY。\n\n範例：\nAPI_KEY=AIzaSy...");
-    }
-  };
-  // --- API KEY CHECK END ---
-
   // PERSISTENCE: Initialize state from localStorage if available
   const [rawInput, setRawInput] = useState<string>(() => {
     return localStorage.getItem('mapsieve_input') || '';
@@ -614,46 +557,6 @@ const App: React.FC = () => {
   }, [placesToShow, viewMode, activeLocation, activeDistrict]);
 
   // --- UI RENDER START ---
-
-  if (isCheckingKey) {
-      return (
-          <div className="flex h-screen items-center justify-center bg-gray-50 flex-col gap-4">
-              <div className="w-10 h-10 border-4 border-systemBlue border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-gray-500 text-sm font-medium">正在初始化系統...</p>
-          </div>
-      );
-  }
-
-  if (!hasApiKey) {
-      return (
-          <div className="flex h-screen items-center justify-center bg-gray-50 p-6 animate-fade-in">
-              <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center border border-gray-100">
-                  <div className="w-16 h-16 bg-blue-50 text-systemBlue rounded-full flex items-center justify-center mx-auto mb-6">
-                     <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
-                  </div>
-                  
-                  <h2 className="text-2xl font-bold text-gray-800 mb-3">歡迎使用 MapSieve AI</h2>
-                  
-                  <p className="text-gray-600 mb-8 leading-relaxed text-sm">
-                     為了開始整理您的地圖清單，請先設定 Google Gemini API Key。<br/>
-                     <span className="text-xs text-gray-400 mt-2 block">(基於安全考量，請使用下方按鈕進行安全選取，無需手動輸入)</span>
-                  </p>
-
-                  <button onClick={handleRequestKey} className="w-full bg-systemBlue text-white font-bold py-3.5 rounded-xl hover:bg-blue-600 transition-all shadow-lg shadow-blue-200 flex items-center justify-center gap-2 group">
-                     <span>選擇或設定 API Key</span>
-                     <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                  </button>
-                  
-                  <div className="mt-6 pt-6 border-t border-gray-100">
-                    <p className="text-xs text-gray-400 mb-2">無法使用按鈕？</p>
-                    <p className="text-xs text-gray-500">
-                        若您在本地環境開發，請確認根目錄下的 <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-700 font-mono">.env</code> 檔案已包含 <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-700 font-mono">API_KEY</code> 設定。
-                    </p>
-                  </div>
-              </div>
-          </div>
-      );
-  }
 
   return (
     <div className="flex flex-col h-screen w-full bg-gray-50 text-gray-800 font-sans overflow-hidden">
