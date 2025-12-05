@@ -1,3 +1,5 @@
+
+
 import React, { useEffect, useRef } from 'react';
 import { Place, CategoryType } from '../types';
 
@@ -94,6 +96,11 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, onHoverPlace, 
     return () => {
         if (mapInstance.current) {
             try {
+                // Remove layers before removing map to prevent animation errors
+                mapInstance.current.eachLayer((layer: any) => {
+                    try { mapInstance.current.removeLayer(layer); } catch(e) {}
+                });
+                mapInstance.current.off();
                 mapInstance.current.remove();
                 mapInstance.current = null;
                 clusterGroup.current = null;

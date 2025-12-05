@@ -6,10 +6,12 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, (process as any).cwd(), '');
   
   // Safely define process.env.API_KEY.
-  // If it exists at build time, use it. 
-  // If not, preserve the code 'process.env.API_KEY' so it can be resolved at runtime (e.g. by AI Studio environment).
-  // JSON.stringify(undefined) returns undefined, so we fallback to the string literal.
-  const apiKeyDefine = JSON.stringify(env.API_KEY || process.env.API_KEY) || 'process.env.API_KEY';
+  const apiKey = env.API_KEY || process.env.API_KEY;
+  
+  // If API_KEY exists, stringify it for injection. 
+  // If NOT, set it to the string "undefined" so the client code `process.env.API_KEY` evaluates to real `undefined`.
+  // This prevents the code from becoming the literal string "process.env.API_KEY" which causes crashes in browsers.
+  const apiKeyDefine = apiKey ? JSON.stringify(apiKey) : 'undefined';
 
   return {
     plugins: [react()],

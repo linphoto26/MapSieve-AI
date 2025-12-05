@@ -32,6 +32,7 @@ const App: React.FC = () => {
           setHasApiKey(has);
         } else {
           // Fallback for environments where process.env.API_KEY is statically defined
+          // !!undefined becomes false, which is correct.
           setHasApiKey(!!process.env.API_KEY);
         }
       } catch (e) {
@@ -609,23 +610,50 @@ const App: React.FC = () => {
   }
 
   if (!hasApiKey) {
+      const isAIStudio = typeof window !== 'undefined' && !!window.aistudio;
+
       return (
           <div className="flex h-screen items-center justify-center bg-gray-50 p-6">
               <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
-                  <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 text-systemBlue">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 ${isAIStudio ? 'bg-blue-50 text-systemBlue' : 'bg-orange-50 text-systemOrange'}`}>
+                    {isAIStudio ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+                    ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    )}
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-800 mb-3">歡迎使用 MapSieve AI</h2>
-                  <p className="text-gray-600 mb-6 leading-relaxed">
-                     請選擇或設定您的 Google Gemini API Key 以開始使用智能行程整理功能。
-                     <br/>
-                     <span className="text-xs text-gray-500 mt-2 block">
-                        請確保選用的專案已啟用計費。 <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="text-systemBlue hover:underline">查看計費說明</a>
+                  
+                  <h2 className="text-2xl font-bold text-gray-800 mb-3">
+                    {isAIStudio ? "歡迎使用 MapSieve AI" : "尚未設定 API Key"}
+                  </h2>
+                  
+                  <div className="text-gray-600 mb-6 leading-relaxed text-sm">
+                     {isAIStudio ? (
+                        <p>請選擇或設定您的 Google Gemini API Key 以開始使用。</p>
+                     ) : (
+                        <div className="space-y-3">
+                            <p>此環境 (如 Vercel) 不支援動態 Key 選擇。請手動設定環境變數。</p>
+                            <div className="bg-gray-100 border border-gray-200 p-3 rounded-lg text-left text-xs font-mono text-gray-700 break-all">
+                                API_KEY=AIzaSy...
+                            </div>
+                            <p>設定後請重新部署 (Redeploy) 或重啟伺服器。</p>
+                        </div>
+                     )}
+                     
+                     <span className="text-xs text-gray-400 mt-4 block">
+                        請確保專案已啟用計費。<a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="text-systemBlue hover:underline">說明</a>
                      </span>
-                  </p>
-                  <button onClick={handleRequestKey} className="w-full bg-systemBlue text-white font-bold py-3 rounded-xl hover:bg-blue-600 transition-colors shadow-lg shadow-blue-200">
-                     選擇 API Key
-                  </button>
+                  </div>
+
+                  {isAIStudio ? (
+                      <button onClick={handleRequestKey} className="w-full bg-systemBlue text-white font-bold py-3 rounded-xl hover:bg-blue-600 transition-colors shadow-lg shadow-blue-200">
+                         選擇 API Key
+                      </button>
+                  ) : (
+                      <button onClick={() => window.location.reload()} className="w-full bg-white border border-gray-300 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-50 transition-colors">
+                         已完成設定，重新整理
+                      </button>
+                  )}
               </div>
           </div>
       );
