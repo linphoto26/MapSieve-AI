@@ -152,34 +152,52 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, onHoverPlace, 
         // Prepare Popup Content
         const mapsUrl = p.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + ' ' + p.locationGuess)}`;
         
-        // MVP SIMPLIFIED POPUP: Name + Highlights + AI Reason only.
+        // SIMPLIFIED POPUP: Focus on "AI Reason"
+        // Design:
+        // 1. Name (Bold)
+        // 2. Keywords (Pills) - Top 3
+        // 3. AI Description (The "Reason")
+        // 4. "View Details" Link
+        
         const popupHtml = `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-width: 200px; max-width: 240px; color: #1f2937;">
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-width: 220px; max-width: 260px; color: #1f2937;">
                 <!-- Header: Name only -->
-                <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 700; color: #111827; line-height: 1.3;">
-                  ${p.name}
-                </h3>
+                <div style="margin-bottom: 8px;">
+                   <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #111827; line-height: 1.3;">${p.name}</h3>
+                   <div style="font-size: 11px; color: #6b7280; font-weight: 500;">${p.subCategory}</div>
+                </div>
 
                 <!-- Highlights/Tags (Visual Keywords) -->
                 ${p.tags && p.tags.length > 0 ? `
-                  <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;">
+                  <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px;">
                     ${p.tags.slice(0, 3).map(tag => `
-                      <span style="font-size: 11px; font-weight: 600; color: #854d0e; background-color: #fef9c3; padding: 2px 6px; border-radius: 4px;">
-                        ${tag}
+                      <span style="font-size: 10px; font-weight: 600; color: #000; background-color: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.05);">
+                        #${tag}
                       </span>
                     `).join('')}
                   </div>
                 ` : ''}
                 
                 <!-- AI Reason (Description) -->
-                <div style="font-size: 13px; color: #374151; line-height: 1.5; margin-bottom: 10px; background: #f9fafb; padding: 8px; border-radius: 6px; border-left: 3px solid ${color};">
-                    ${p.description || 'AI 推薦地點'}
+                <div style="
+                    font-size: 12px; 
+                    color: #4b5563; 
+                    line-height: 1.6; 
+                    margin-bottom: 12px; 
+                    background: #f9fafb; 
+                    padding: 8px 10px; 
+                    border-radius: 8px; 
+                    border-left: 3px solid ${color};
+                    position: relative;
+                ">
+                    <span style="display: block; font-size: 10px; color: #9ca3af; font-weight: 700; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px;">AI 推薦理由</span>
+                    ${p.description || '無詳細描述'}
                 </div>
                 
                 <!-- Minimal Footer: Link only -->
-                <div style="text-align: right;">
-                     <a href="${mapsUrl}" target="_blank" style="display: inline-flex; align-items: center; font-size: 12px; color: #2563EB; text-decoration: none; font-weight: 500;">
-                        查看詳情
+                <div style="text-align: right; border-top: 1px solid #f3f4f6; padding-top: 8px;">
+                     <a href="${mapsUrl}" target="_blank" style="display: inline-flex; align-items: center; font-size: 12px; color: #2563EB; text-decoration: none; font-weight: 600;">
+                        在 Google 地圖查看
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width: 12px; height: 12px; margin-left: 2px;">
                           <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
                         </svg>
@@ -188,7 +206,10 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, onHoverPlace, 
             </div>
         `;
               
-        marker.bindPopup(popupHtml);
+        marker.bindPopup(popupHtml, {
+             closeButton: false, // Cleaner look
+             className: 'ai-popup' // We could add custom css but inline styles are safer here
+        });
 
         marker.on('click', () => {
             onSelectPlace(p.id);
@@ -245,7 +266,8 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, onHoverPlace, 
                 const valid = validateLatLng(ll.lat, ll.lng);
                 if (valid) {
                     mapInstance.current.flyTo(ll, 16, {
-                        duration: 1.0
+                        duration: 1.0,
+                        easeLinearity: 0.25
                     });
                     marker.openPopup();
                 }
