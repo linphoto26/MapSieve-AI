@@ -7,6 +7,7 @@ declare const L: any;
 interface MapViewProps {
   places: Place[];
   onSelectPlace: (id: string) => void;
+  onHoverPlace?: (id: string | null) => void;
   selectedPlaceId?: string | null;
   hoveredPlaceId?: string | null;
 }
@@ -39,9 +40,10 @@ const validateLatLng = (lat: any, lng: any): [number, number] | null => {
   return null;
 };
 
-const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceId, hoveredPlaceId }) => {
+const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, onHoverPlace, selectedPlaceId, hoveredPlaceId }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
+  const clusterGroup = useRef<any>(null);
   const markersMap = useRef<Map<string, any>>(new Map());
 
   // Initialize Map
@@ -52,6 +54,7 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
       try {
         mapInstance.current = L.map(mapRef.current, {
           zoomControl: false,
+          tap: false // Fix mobile click issues
         }).setView([23.5, 121], 7);
         
         L.control.zoom({
@@ -63,6 +66,25 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
           subdomains: 'abcd',
           maxZoom: 19
         }).addTo(mapInstance.current);
+
+        // Initialize Cluster Group with custom settings
+        clusterGroup.current = L.markerClusterGroup({
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true,
+            spiderfyOnMaxZoom: true,
+            maxClusterRadius: 50,
+            iconCreateFunction: function(cluster: any) {
+                const count = cluster.getChildCount();
+                // Use custom CSS classes for clusters
+                return new L.DivIcon({ 
+                    html: '<div><span>' + count + '</span></div>', 
+                    className: 'marker-cluster marker-cluster-small', 
+                    iconSize: new L.Point(40, 40) 
+                });
+            }
+        });
+        mapInstance.current.addLayer(clusterGroup.current);
+
       } catch (e) {
         console.error("Map initialization failed", e);
       }
@@ -74,6 +96,7 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
             try {
                 mapInstance.current.remove();
                 mapInstance.current = null;
+                clusterGroup.current = null;
             } catch (e) {
                 // Ignore cleanup errors
             }
@@ -81,15 +104,15 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
     };
   }, []);
 
-  // Update Markers
+  // Update Markers & Clusters
   useEffect(() => {
     const map = mapInstance.current;
-    if (!map) return;
+    if (!map || !clusterGroup.current) return;
 
-    // 1. Safe Cleanup
-    markersMap.current.forEach((marker) => {
-        try { map.removeLayer(marker); } catch (e) {}
-    });
+    // 1. Clear existing markers from cluster group and map reference
+    try {
+        clusterGroup.current.clearLayers();
+    } catch (e) { console.warn("Clear layers failed", e); }
     markersMap.current.clear();
 
     const bounds = L.latLngBounds([]);
@@ -100,10 +123,7 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
         // ULTIMATE DEFENSE: Check coordinates before doing ANYTHING
         const validCoords = p.coordinates ? validateLatLng(p.coordinates.lat, p.coordinates.lng) : null;
         
-        if (!validCoords) {
-            // Silently skip invalid places to prevent crash
-            return; 
-        }
+        if (!validCoords) return;
 
         const [lat, lng] = validCoords;
         const color = getCategoryColor(p.category);
@@ -115,14 +135,14 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
         `;
 
         const icon = L.divIcon({
-          className: 'custom-pin',
-          html: `<div style="width: 32px; height: 32px; transform: translate(-50%, -100%); transition: transform 0.2s ease;">${svgHtml}</div>`,
+          className: `custom-pin-${p.id}`,
+          html: `<div id="pin-${p.id}" style="width: 32px; height: 32px; transform: translate(-50%, -100%); transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);">${svgHtml}</div>`,
           iconSize: [32, 32],
           iconAnchor: [16, 32],
           popupAnchor: [0, -32]
         });
 
-        const marker = L.marker([lat, lng], { icon: icon }).addTo(map);
+        const marker = L.marker([lat, lng], { icon: icon });
               
         marker.bindPopup(`
             <div style="font-family: -apple-system, system-ui; padding: 4px; min-width: 150px;">
@@ -135,13 +155,23 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
         marker.on('click', () => {
             onSelectPlace(p.id);
         });
+
+        // Add hover events to markers
+        marker.on('mouseover', () => {
+            onHoverPlace?.(p.id);
+        });
+        marker.on('mouseout', () => {
+            onHoverPlace?.(null);
+        });
+        
+        // Add to Cluster Group instead of Map directly
+        clusterGroup.current.addLayer(marker);
         
         markersMap.current.set(p.id, marker);
         bounds.extend([lat, lng]);
         hasValidBounds = true;
 
       } catch (err) {
-        // Catch-all for individual marker failure
         console.warn("Skipping marker due to error:", p.name);
       }
     });
@@ -157,7 +187,7 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
        }
     }
     
-    // 3. Fix Layout
+    // 3. Invalidate size for layout correctness
     setTimeout(() => {
       try { map.invalidateSize(); } catch(e) {}
     }, 200);
@@ -166,44 +196,51 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, selectedPlaceI
 
   // Handle Selection: FlyTo + Popup
   useEffect(() => {
-    if (!selectedPlaceId || !mapInstance.current) return;
+    if (!selectedPlaceId || !mapInstance.current || !clusterGroup.current) return;
     
     const marker = markersMap.current.get(selectedPlaceId);
     if (marker) {
         try {
-            const ll = marker.getLatLng();
-            // ULTIMATE DEFENSE: Check coordinates again before flying
-            const valid = validateLatLng(ll.lat, ll.lng);
-            
-            if (valid) {
-                mapInstance.current.flyTo(ll, 15, {
-                    duration: 1.5,
-                    easeLinearity: 0.25
-                });
-                marker.openPopup();
-            }
+            // Zoom to cluster if hidden
+            clusterGroup.current.zoomToShowLayer(marker, () => {
+                const ll = marker.getLatLng();
+                const valid = validateLatLng(ll.lat, ll.lng);
+                if (valid) {
+                    mapInstance.current.flyTo(ll, 16, {
+                        duration: 1.0
+                    });
+                    marker.openPopup();
+                }
+            });
         } catch (e) {
-            console.warn("FlyTo suppressed:", e);
+            console.warn("ZoomToShowLayer failed:", e);
         }
     }
   }, [selectedPlaceId]);
 
-  // Handle Hover
+  // Handle Hover: Scale Animation
   useEffect(() => {
-    markersMap.current.forEach((m: any) => m.setZIndexOffset(0));
-    
-    if (hoveredPlaceId) {
-        const marker = markersMap.current.get(hoveredPlaceId);
-        if (marker) {
-            marker.setZIndexOffset(1000);
-        }
+    const pin = document.getElementById(`pin-${hoveredPlaceId}`);
+    if (pin) {
+        pin.style.transform = 'translate(-50%, -100%) scale(1.5)';
+        pin.style.zIndex = '1000'; // Make sure it pops over others
     }
+
+    return () => {
+        // Cleanup scale on unhover
+        if (hoveredPlaceId) {
+            const prevPin = document.getElementById(`pin-${hoveredPlaceId}`);
+            if (prevPin) {
+                prevPin.style.transform = 'translate(-50%, -100%) scale(1)';
+                prevPin.style.zIndex = 'auto';
+            }
+        }
+    };
   }, [hoveredPlaceId]);
 
   return (
-    <div className="w-full h-96 rounded-2xl overflow-hidden shadow-mac-card border border-gray-200/50 z-0 relative group">
-       <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_20px_rgba(0,0,0,0.05)] z-10 rounded-2xl"></div>
-      <div ref={mapRef} className="w-full h-full" />
+    <div className="w-full h-full bg-gray-100 z-0 relative group">
+      <div ref={mapRef} className="w-full h-full" style={{ minHeight: '100%' }} />
     </div>
   );
 };

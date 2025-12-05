@@ -6,6 +6,7 @@ interface PlaceCardProps {
   onDelete: (id: string) => void;
   onAddPlace?: () => void;
   isSelected?: boolean;
+  isHovered?: boolean;
   onHover?: (id: string | null) => void;
   onClick?: () => void;
   id?: string;
@@ -49,7 +50,7 @@ const renderStars = (rating: number, isVerified?: boolean) => {
   );
 };
 
-const PlaceCard: React.FC<PlaceCardProps> = ({ place, onDelete, onAddPlace, isSelected, onHover, onClick, id }) => {
+const PlaceCard: React.FC<PlaceCardProps> = ({ place, onDelete, onAddPlace, isSelected, isHovered, onHover, onClick, id }) => {
   const searchQuery = `${place.name} ${place.subCategory || ''} ${place.locationGuess || ''}`.trim();
   const mapsUrl = place.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery)}`;
 
@@ -77,7 +78,9 @@ const PlaceCard: React.FC<PlaceCardProps> = ({ place, onDelete, onAddPlace, isSe
         bg-white rounded-xl border transition-all duration-200 flex flex-col h-full relative group overflow-hidden cursor-pointer
         ${isSelected 
           ? 'border-systemBlue ring-2 ring-blue-100 shadow-md transform scale-[1.02] z-10' 
-          : 'border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300'
+          : isHovered
+            ? 'border-systemBlue/50 shadow-md transform scale-[1.01] z-10'
+            : 'border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300'
         }
       `}
     >
@@ -123,7 +126,7 @@ const PlaceCard: React.FC<PlaceCardProps> = ({ place, onDelete, onAddPlace, isSe
             </div>
         </div>
 
-        <h3 className="font-bold text-gray-900 text-lg leading-tight mb-1 group-hover:text-systemBlue transition-colors">
+        <h3 className={`font-bold text-gray-900 text-lg leading-tight mb-1 transition-colors ${isSelected || isHovered ? 'text-systemBlue' : 'group-hover:text-systemBlue'}`}>
             {place.name}
         </h3>
         

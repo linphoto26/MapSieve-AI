@@ -1,28 +1,8 @@
 import { GoogleGenAI, GenerateContentResponse, Chat } from "@google/genai";
 import { AnalysisResult, CategoryType, Place } from "../types";
 
-// Initialize with a fallback to avoid crash on load if key is missing.
-// We allow setting the key dynamically via localStorage or input.
-let apiKey = process.env.API_KEY || localStorage.getItem('gemini_api_key') || '';
-let ai: GoogleGenAI | null = null;
-
-export const hasApiKey = () => !!apiKey;
-
-export const setApiKey = (key: string) => {
-  apiKey = key;
-  localStorage.setItem('gemini_api_key', key);
-  ai = new GoogleGenAI({ apiKey });
-};
-
-const getAiClient = () => {
-  if (!ai) {
-    if (!apiKey) {
-      throw new Error("API_KEY_MISSING");
-    }
-    ai = new GoogleGenAI({ apiKey });
-  }
-  return ai;
-};
+// Always use the API key from the environment variable.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
  * Helper to safely extract and parse JSON from AI response text.
@@ -119,8 +99,6 @@ const JSON_STRUCTURE_PROMPT = `
  * Creates a chat session contextualized with the current itinerary.
  */
 export const createChatSession = (places: Place[]): Chat => {
-    const client = getAiClient();
-    
     const simplifiedPlaces = places.map(p => ({
         name: p.name,
         category: p.category,
@@ -147,7 +125,7 @@ export const createChatSession = (places: Place[]): Chat => {
         4. Do not make up facts about places not in the list unless asked for general travel advice in that area.
     `;
 
-    return client.chats.create({
+    return ai.chats.create({
         model: 'gemini-2.5-flash',
         config: {
             systemInstruction: systemInstruction,
@@ -159,8 +137,6 @@ export const createChatSession = (places: Place[]): Chat => {
  * Analyze an image using gemini-3-pro-preview with fallback to 2.5-flash
  */
 export const analyzeImage = async (base64Image: string, mimeType: string): Promise<AnalysisResult> => {
-  const client = getAiClient();
-
   const prompt = `
     You are a visual travel assistant. Identify places, restaurants, or attractions shown in this image.
     It could be a screenshot of a list, a photo of a menu, a signboard, or a travel guide page.
@@ -181,7 +157,7 @@ export const analyzeImage = async (base64Image: string, mimeType: string): Promi
 
   try {
     // Try primary model (Gemini 3 Pro)
-    const response = await retryOperation<GenerateContentResponse>(() => client.models.generateContent({
+    const response = await retryOperation<GenerateContentResponse>(() => ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: contents
     }));
@@ -192,12 +168,11 @@ export const analyzeImage = async (base64Image: string, mimeType: string): Promi
     return parsed;
 
   } catch (e: any) {
-    if (e.message === "API_KEY_MISSING") throw e;
     console.warn("Gemini 3 Pro failed, attempting fallback to Gemini 2.5 Flash...", e);
     
     // Fallback to Gemini 2.5 Flash if 3 Pro fails
     try {
-       const response = await retryOperation<GenerateContentResponse>(() => client.models.generateContent({
+       const response = await retryOperation<GenerateContentResponse>(() => ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: contents
       }));
@@ -208,7 +183,6 @@ export const analyzeImage = async (base64Image: string, mimeType: string): Promi
       return parsed;
 
     } catch (fallbackError: any) {
-      if (fallbackError.message === "API_KEY_MISSING") throw fallbackError;
       console.error("Image analysis error:", fallbackError);
       throw new Error("圖片分析失敗，請確保圖片清晰包含文字或地點。");
     }
@@ -219,8 +193,6 @@ export const analyzeImage = async (base64Image: string, mimeType: string): Promi
  * Analyze text/URL using gemini-2.5-flash with Google Maps Grounding
  */
 export const analyzeMapData = async (rawText: string, categoryHint?: string): Promise<AnalysisResult> => {
-  const client = getAiClient();
-
   const modelId = "gemini-2.5-flash"; // Flash supports grounding efficiently
   const trimmedInput = rawText.trim();
   const isUrl = trimmedInput.match(/^https?:\/\//i);
@@ -306,7 +278,7 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
   }
 
   try {
-    const response = await retryOperation<GenerateContentResponse>(() => client.models.generateContent({
+    const response = await retryOperation<GenerateContentResponse>(() => ai.models.generateContent({
       model: modelId,
       contents: prompt,
       config: {
@@ -371,7 +343,6 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
     return parsed;
 
   } catch (e: any) {
-    if (e.message === "API_KEY_MISSING") throw e;
     console.error("Analysis error:", e);
     if (e.message && e.message.includes("JSON")) throw new Error("AI 分析結果格式錯誤，請重試。");
     if (e.message && e.message.includes("SAFETY")) throw new Error("內容涉及安全限制，無法分析。");
