@@ -1,8 +1,14 @@
 import { GoogleGenAI, GenerateContentResponse, Chat } from "@google/genai";
 import { AnalysisResult, CategoryType, Place } from "../types";
 
-// Always use the API key from the environment variable.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Lazy initialization helper to prevent top-level crashes if API_KEY is missing
+const getAiClient = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("Gemini API Key 未設定。請確認環境變數 process.env.API_KEY 已正確配置。");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 /**
  * Helper to safely extract and parse JSON from AI response text.
@@ -99,6 +105,7 @@ const JSON_STRUCTURE_PROMPT = `
  * Creates a chat session contextualized with the current itinerary.
  */
 export const createChatSession = (places: Place[]): Chat => {
+    const ai = getAiClient();
     const simplifiedPlaces = places.map(p => ({
         name: p.name,
         category: p.category,
@@ -137,6 +144,7 @@ export const createChatSession = (places: Place[]): Chat => {
  * Analyze an image using gemini-3-pro-preview with fallback to 2.5-flash
  */
 export const analyzeImage = async (base64Image: string, mimeType: string): Promise<AnalysisResult> => {
+  const ai = getAiClient();
   const prompt = `
     You are a visual travel assistant. Identify places, restaurants, or attractions shown in this image.
     It could be a screenshot of a list, a photo of a menu, a signboard, or a travel guide page.
@@ -193,6 +201,7 @@ export const analyzeImage = async (base64Image: string, mimeType: string): Promi
  * Analyze text/URL using gemini-2.5-flash with Google Maps Grounding
  */
 export const analyzeMapData = async (rawText: string, categoryHint?: string): Promise<AnalysisResult> => {
+  const ai = getAiClient();
   const modelId = "gemini-2.5-flash"; // Flash supports grounding efficiently
   const trimmedInput = rawText.trim();
   const isUrl = trimmedInput.match(/^https?:\/\//i);
@@ -347,6 +356,6 @@ export const analyzeMapData = async (rawText: string, categoryHint?: string): Pr
     if (e.message && e.message.includes("JSON")) throw new Error("AI 分析結果格式錯誤，請重試。");
     if (e.message && e.message.includes("SAFETY")) throw new Error("內容涉及安全限制，無法分析。");
     if (e.status === 500 || e?.error?.code === 500) throw new Error("伺服器繁忙 (500)，請稍後再試。");
-    throw new Error("分析失敗，請檢查輸入內容或網路連線。");
+    throw e;
   }
 };
