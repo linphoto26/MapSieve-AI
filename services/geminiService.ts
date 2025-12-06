@@ -1,15 +1,6 @@
+
 import { GoogleGenAI, GenerateContentResponse, Chat } from "@google/genai";
 import { AnalysisResult, CategoryType, Place } from "../types";
-
-const API_KEY = process.env.API_KEY || "AIzaSyCiNjqeW2cYGTE8ViQDcz3_XfQUFJ0EngU";
-
-// Lazy initialization helper
-const getAiClient = () => {
-  if (!API_KEY) {
-    throw new Error("API Key is missing.");
-  }
-  return new GoogleGenAI({ apiKey: API_KEY });
-};
 
 /**
  * Helper to safely extract and parse JSON from AI response text.
@@ -74,6 +65,7 @@ async function retryOperation<T>(
   }
 }
 
+// OPTIMIZED PROMPT FOR MVP: Focus on POI extraction and Sentiment
 const JSON_STRUCTURE_PROMPT = `
     RETURN JSON ONLY. No markdown, no conversational text.
     
@@ -111,8 +103,10 @@ const JSON_STRUCTURE_PROMPT = `
     }
 `;
 
-export const createChatSession = (places: Place[]): Chat => {
-    const ai = getAiClient();
+export const createChatSession = (places: Place[], apiKey: string): Chat => {
+    if (!apiKey) throw new Error("API Key is missing");
+    const ai = new GoogleGenAI({ apiKey });
+    
     const simplifiedPlaces = places.map(p => ({
         name: p.name,
         desc: p.description,
@@ -132,8 +126,10 @@ export const createChatSession = (places: Place[]): Chat => {
     });
 };
 
-export const analyzeMapData = async (rawText: string): Promise<AnalysisResult> => {
-  const ai = getAiClient();
+export const analyzeMapData = async (rawText: string, apiKey: string): Promise<AnalysisResult> => {
+  if (!apiKey) throw new Error("請先設定 API Key");
+  
+  const ai = new GoogleGenAI({ apiKey });
   const trimmedInput = rawText.trim();
   const isUrl = trimmedInput.match(/^https?:\/\//i);
 
@@ -214,6 +210,7 @@ export const analyzeMapData = async (rawText: string): Promise<AnalysisResult> =
 
   } catch (e: any) {
     console.error("Analysis error:", e);
+    if (e.status === 403 || e.message?.includes("API key")) throw new Error("API Key 無效或額度已滿，請檢查設定。");
     if (e.message?.includes("JSON")) throw new Error("AI 分析格式錯誤，請重試。");
     if (e.status === 500) throw new Error("伺服器繁忙，請稍後再試。");
     throw e;

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Place } from '../types';
 import { createChatSession } from '../services/geminiService';
@@ -5,6 +6,7 @@ import { Chat, GenerateContentResponse } from '@google/genai';
 
 interface ChatWidgetProps {
   places: Place[];
+  apiKey: string;
 }
 
 interface Message {
@@ -13,7 +15,7 @@ interface Message {
   text: string;
 }
 
-const ChatWidget: React.FC<ChatWidgetProps> = ({ places }) => {
+const ChatWidget: React.FC<ChatWidgetProps> = ({ places, apiKey }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { id: 'init', role: 'model', text: '你好！我是你的 AI 旅遊顧問。關於這份行程清單，有什麼我可以幫你的嗎？' }
@@ -25,17 +27,19 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ places }) => {
 
   useEffect(() => {
     // Reset chat when places change significantly, or just init once
-    if (places.length > 0) {
+    if (places.length > 0 && apiKey) {
       try {
-        chatSession.current = createChatSession(places);
+        chatSession.current = createChatSession(places, apiKey);
         setMessages([{ id: 'init', role: 'model', text: '你好！我是你的 AI 旅遊顧問。關於這份行程清單，有什麼我可以幫你的嗎？' }]);
       } catch (e) {
         console.warn("Chat session failed to initialize:", e);
         chatSession.current = null;
-        setMessages([{ id: 'error', role: 'model', text: '⚠️ 無法啟動 AI 顧問 (API Key 未設定或無效)。請檢查設定後重試。' }]);
+        setMessages([{ id: 'error', role: 'model', text: '⚠️ 無法啟動 AI 顧問 (API Key 錯誤)。請檢查設定後重試。' }]);
       }
+    } else if (!apiKey) {
+      setMessages([{ id: 'no-key', role: 'model', text: '⚠️ 請先點擊右上角設定 API Key 才能使用聊天功能。' }]);
     }
-  }, [places]);
+  }, [places, apiKey]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -49,7 +53,11 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ places }) => {
     if (!input.trim()) return;
     
     if (!chatSession.current) {
-        setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: '⚠️ 聊天功能目前無法使用。' }]);
+        if (!apiKey) {
+           setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: '⚠️ 請先設定 API Key。' }]);
+        } else {
+           setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: '⚠️ 聊天功能目前無法使用。' }]);
+        }
         return;
     }
 

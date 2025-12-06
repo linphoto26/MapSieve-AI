@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { analyzeMapData } from './services/geminiService';
 import { AnalysisResult, CategoryType, Place } from './types';
@@ -5,6 +6,7 @@ import PlaceCard from './components/PlaceCard';
 import SkeletonCard from './components/SkeletonCard';
 import MapView from './components/MapView';
 import ChatWidget from './components/ChatWidget';
+import ApiKeyModal from './components/ApiKeyModal';
 import { generateCSV, generateKML, downloadFile } from './services/exportService';
 
 const LOADING_MESSAGES = [
@@ -31,6 +33,11 @@ const App: React.FC = () => {
       return null;
     }
   });
+
+  const [apiKey, setApiKey] = useState<string>(() => {
+    return localStorage.getItem('mapsieve_api_key') || '';
+  });
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loadingMessage, setLoadingMessage] = useState<string>(LOADING_MESSAGES[0]);
@@ -88,6 +95,11 @@ const App: React.FC = () => {
       localStorage.removeItem('mapsieve_result');
     }
   }, [result]);
+
+  const handleSaveApiKey = (key: string) => {
+    setApiKey(key);
+    localStorage.setItem('mapsieve_api_key', key);
+  };
 
   // Scroll Detection for Back To Top
   useEffect(() => {
@@ -170,10 +182,17 @@ const App: React.FC = () => {
 
   const handleAnalyze = async () => {
     if (!rawInput.trim()) return;
+    
+    // Check API Key
+    if (!apiKey) {
+      setShowApiKeyModal(true);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     try {
-      const data = await analyzeMapData(rawInput);
+      const data = await analyzeMapData(rawInput, apiKey);
       setResult(data);
     } catch (err: any) {
       setError(err.message || "我們無法處理此清單，請嘗試提供更清楚的內容。");
@@ -304,6 +323,13 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col h-screen w-full bg-gray-50 text-gray-800 font-sans overflow-hidden">
       
+      <ApiKeyModal 
+        isOpen={showApiKeyModal} 
+        onClose={() => setShowApiKeyModal(false)} 
+        onSave={handleSaveApiKey}
+        initialKey={apiKey}
+      />
+
       {/* Header */}
       <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 shrink-0 z-50 shadow-sm relative">
         <div className="flex items-center gap-3">
@@ -318,6 +344,18 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
+          
+          <button 
+            onClick={() => setShowApiKeyModal(true)}
+            className="p-2 text-gray-500 hover:text-systemBlue hover:bg-gray-100 rounded-lg"
+            title="設定 API Key"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+
           {(result || isLoading) && (
             <>
               <div className="relative">
@@ -461,7 +499,12 @@ const App: React.FC = () => {
                                         {isLoading ? '處理中...' : '生成地圖'}
                                     </button>
                                 </div>
-                                {error && <div className="mt-6 px-4 py-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
+                                {error && (
+                                  <div className="mt-6 px-4 py-3 bg-red-50 border border-red-100 text-red-600 rounded-lg text-sm flex items-start gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                                    <span>{error}</span>
+                                  </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -577,7 +620,7 @@ const App: React.FC = () => {
       </div>
 
       {/* Floating Elements */}
-      {result && <ChatWidget places={result.places} />}
+      {result && <ChatWidget places={result.places} apiKey={apiKey} />}
       
       {/* Back To Top (Only Desktop or Expanded Sheet) */}
       {showBackToTop && (
