@@ -1,7 +1,7 @@
 import { GoogleGenAI, GenerateContentResponse, Chat } from "@google/genai";
 import { AnalysisResult, CategoryType, Place } from "../types";
 
-const API_KEY = "AIzaSyCiNjqeW2cYGTE8ViQDcz3_XfQUFJ0EngU";
+const API_KEY = process.env.API_KEY || "AIzaSyCiNjqeW2cYGTE8ViQDcz3_XfQUFJ0EngU";
 
 // Lazy initialization helper
 const getAiClient = () => {
@@ -76,7 +76,18 @@ async function retryOperation<T>(
 
 const JSON_STRUCTURE_PROMPT = `
     RETURN JSON ONLY. No markdown, no conversational text.
-    Structure:
+    
+    You are a professional travel itinerary assistant. 
+    Your task is to extract specific Points of Interest (POIs) from the text.
+
+    RULES:
+    1. **Extract Specific POIs Only**: Only extract specific restaurants, hotels, tourist spots, or shops.
+    2. **Ignore Broad Locations**: Do NOT extract cities (e.g., "Taipei", "Kyoto"), airports, or generic terms like "Convenience Store" or "Station" unless it is a specific destination.
+    3. **Chain Stores**: If a chain store is mentioned without a specific branch (e.g., "We ate at Matsuya"), extract it as "Brand + City" (e.g., "Matsuya Kyoto") to help the map tool find a relevant location.
+    4. **Blogger Sentiment**: For the 'description' field, do NOT write generic info. Extract the **Author's Specific Comments** (e.g., "The cinnamon roll is a must-try," "The queue was too long").
+    5. **Coordinates**: Use the provided Google Maps tool to find accurate coordinates.
+
+    Output Structure:
     {
       "summary": "string (One sentence summary in Traditional Chinese)",
       "places": [
@@ -84,11 +95,11 @@ const JSON_STRUCTURE_PROMPT = `
           "name": "string (Full specific name, e.g. 'Starbucks Shibuya Tsutaya')",
           "category": "FOOD" | "DRINK" | "SIGHTSEEING" | "SHOPPING" | "ACTIVITY" | "LODGING" | "OTHER",
           "subCategory": "string (e.g. 拉麵店)",
-          "description": "string (CRITICAL: Extract the AUTHOR'S SPECIFIC REASON for recommending this. Why did they like it? e.g. 'The broth is rich and creamy', 'Best view of the sunset', 'Quiet spot for reading'. Do NOT write generic descriptions like 'A popular restaurant'.)",
-          "ratingPrediction": number (1-5),
+          "description": "string (The Blogger's Sentiment/Review. Why did they like/dislike it?)",
+          "ratingPrediction": number (1-5, based on author's tone),
           "priceLevel": "Free" | "$" | "$$" | "$$$" | "$$$$" | "Unknown",
-          "tags": ["string (Keywords from the review, e.g. 'Quiet', 'Scenic', 'Spicy')"],
-          "locationGuess": "string (Strict format: 'City District' e.g. '台北市 信義區'. MUST use a space separator.)",
+          "tags": ["string (Keywords from the review, e.g. 'Cozy', 'Spicy')"],
+          "locationGuess": "string (Strict format: 'City District' e.g. '台北市 信義區'.)",
           "address": "string (Full specific address if available, otherwise null)",
           "openingHours": "string (e.g. 'Mon-Sun 10:00-22:00' or 'Unknown')",
           "coordinates": { "lat": number, "lng": number },
@@ -121,62 +132,24 @@ export const createChatSession = (places: Place[]): Chat => {
     });
 };
 
-export const analyzeImage = async (base64Image: string, mimeType: string): Promise<AnalysisResult> => {
-  const ai = getAiClient();
-  const prompt = `
-    Identify places in this image (menu, list, guide).
-    Extract place names and generate a reason for recommendation based on visual cues.
-    ${JSON_STRUCTURE_PROMPT}
-  `;
-
-  const contents = {
-    parts: [
-      { inlineData: { mimeType, data: base64Image } },
-      { text: prompt }
-    ]
-  };
-
-  try {
-    const response = await retryOperation<GenerateContentResponse>(() => ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: contents
-    }));
-
-    if (!response.text) throw new Error("No response from Gemini");
-    const parsed = cleanAndParseJSON(response.text);
-    parsed.places = parsed.places.map((p, idx) => ({ ...p, id: p.id || `img-place-${idx}-${Date.now()}` }));
-    return parsed;
-  } catch (e: any) {
-    console.warn("Gemini 3 Pro failed, fallback to 2.5 Flash...", e);
-    const response = await retryOperation<GenerateContentResponse>(() => ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: contents
-    }));
-    if (!response.text) throw new Error("No response");
-    const parsed = cleanAndParseJSON(response.text);
-    parsed.places = parsed.places.map((p, idx) => ({ ...p, id: p.id || `img-place-${idx}-${Date.now()}` }));
-    return parsed;
-  }
-};
-
 export const analyzeMapData = async (rawText: string): Promise<AnalysisResult> => {
   const ai = getAiClient();
   const trimmedInput = rawText.trim();
   const isUrl = trimmedInput.match(/^https?:\/\//i);
 
   let prompt = "";
+  // We use the googleMaps tool as the primary "Geocoding" agent as requested by the split-duty strategy.
+  // The model extracts the entity -> Calls the tool -> Returns the grounded data.
   let tools: any[] = [{ googleMaps: {} }];
 
   if (isUrl) {
-    tools = [{ googleSearch: {} }]; 
+    tools = [{ googleSearch: {} }, { googleMaps: {} }]; 
     prompt = `
       You are a Travelog Converter.
       URL: "${rawText}".
       
-      1. Read the article.
-      2. Extract every recommended place/restaurant/hotel.
-      3. For "description", find the AUTHOR'S specific comments (e.g. "The coffee is sour but good", "Wait time is long").
-      4. IGNORE sidebars and ads.
+      1. Read the content from the URL.
+      2. Follow the extraction rules below strictly.
       
       ${JSON_STRUCTURE_PROMPT}
       Output in Traditional Chinese (zh-TW).
@@ -187,8 +160,7 @@ export const analyzeMapData = async (rawText: string): Promise<AnalysisResult> =
       Analyze this text: "${trimmedInput}".
       
       1. Extract places.
-      2. Use Google Maps to verify address/coordinates.
-      3. For "description", summarize WHY the text recommends it.
+      2. Use Google Maps tool to verify address/coordinates.
       
       ${JSON_STRUCTURE_PROMPT}
       Output in Traditional Chinese (zh-TW).
@@ -211,6 +183,7 @@ export const analyzeMapData = async (rawText: string): Promise<AnalysisResult> =
       let uri = p.googleMapsUri;
       let isVerified = false;
 
+      // Enhance verification with grounding metadata if available
       if (groundingChunks) {
          const chunk = groundingChunks.find(c => {
              const chunkAny = c as any;
@@ -226,6 +199,7 @@ export const analyzeMapData = async (rawText: string): Promise<AnalysisResult> =
          }
       }
 
+      // Cleanup invalid URIs
       if (uri && (uri.includes('search') || !uri.includes('google'))) uri = undefined;
 
       return {

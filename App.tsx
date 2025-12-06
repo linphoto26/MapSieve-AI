@@ -1,7 +1,5 @@
-
-
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { analyzeMapData, analyzeImage } from './services/geminiService';
+import { analyzeMapData } from './services/geminiService';
 import { AnalysisResult, CategoryType, Place } from './types';
 import PlaceCard from './components/PlaceCard';
 import SkeletonCard from './components/SkeletonCard';
@@ -63,9 +61,6 @@ const App: React.FC = () => {
   // Mobile Bottom Sheet State
   const [isBottomSheetExpanded, setIsBottomSheetExpanded] = useState(false);
 
-  // Ref for file input
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
   // Message rotation effect
   useEffect(() => {
     let interval: any;
@@ -184,33 +179,6 @@ const App: React.FC = () => {
       setError(err.message || "我們無法處理此清單，請嘗試提供更清楚的內容。");
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsLoading(true);
-    setError(null);
-    setResult(null);
-    try {
-        const base64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-                const result = reader.result as string;
-                const base64Data = result.split(',')[1];
-                resolve(base64Data);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-        const data = await analyzeImage(base64, file.type);
-        setResult(data);
-    } catch (err: any) {
-        setError(err.message || "圖片分析失敗。");
-    } finally {
-        setIsLoading(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -345,7 +313,7 @@ const App: React.FC = () => {
              </svg>
           </div>
           <h1 className="text-xl font-bold text-gray-800 tracking-tight flex items-center gap-2">
-            MapSieve AI <span className="text-gray-400 font-light hidden sm:inline">|</span> <span className="text-gray-500 font-normal text-lg hidden sm:inline">遊記轉地圖</span>
+            MapSieve AI <span className="text-gray-400 font-light hidden sm:inline">|</span> <span className="text-gray-500 font-normal text-lg hidden sm:inline">遊記轉地圖 (Text Only)</span>
           </h1>
         </div>
 
@@ -479,7 +447,7 @@ const App: React.FC = () => {
                                     <div className="bg-blue-100 p-2 rounded-xl">
                                         <svg className="w-6 h-6 text-systemBlue" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
                                     </div>
-                                    <h2 className="text-2xl font-bold text-gray-800">遊記轉換器</h2>
+                                    <h2 className="text-2xl font-bold text-gray-800">遊記轉換器 (MVP)</h2>
                                 </div>
                                 <p className="text-gray-600 mb-4">將網路遊記、部落格文章或旅遊筆記，一鍵轉換為可互動的行程地圖。AI 會自動標註文中提到的餐廳、景點與住宿。</p>
                                 <textarea
@@ -488,14 +456,7 @@ const App: React.FC = () => {
                                     value={rawInput}
                                     onChange={(e) => setRawInput(e.target.value)}
                                 />
-                                <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-4">
-                                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                                        <button onClick={() => fileInputRef.current?.click()} className="flex-1 sm:flex-none text-sm font-medium text-gray-600 hover:text-systemBlue bg-white border border-gray-200 px-4 py-2.5 rounded-lg flex items-center justify-center gap-2">
-                                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                            上傳截圖
-                                        </button>
-                                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-                                    </div>
+                                <div className="flex flex-col sm:flex-row justify-end items-center mt-4 gap-4">
                                     <button onClick={handleAnalyze} disabled={isLoading || !rawInput.trim()} className={`w-full sm:w-auto px-8 py-2.5 rounded-lg text-sm font-bold text-white shadow-sm transition-all ${isLoading || !rawInput.trim() ? 'bg-gray-300 cursor-not-allowed' : 'bg-systemBlue hover:bg-blue-600'}`}>
                                         {isLoading ? '處理中...' : '生成地圖'}
                                     </button>
