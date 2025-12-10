@@ -39,12 +39,16 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, onHoverPlace, 
   const clusterGroup = useRef<any>(null);
   const markersMap = useRef<Map<string, any>>(new Map());
 
+  // Initialize Map
   useEffect(() => {
     if (!mapRef.current) return;
+    
+    // Prevent double init
     if (!mapInstance.current) {
       try {
         mapInstance.current = L.map(mapRef.current, { zoomControl: false, tap: false }).setView([23.5, 121], 7);
         L.control.zoom({ position: 'bottomright' }).addTo(mapInstance.current);
+        
         // Use a cleaner, simpler map tile (CartoDB Voyager or Light)
         L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
           attribution: '&copy; OpenStreetMap &copy; CARTO',
@@ -52,6 +56,7 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, onHoverPlace, 
           maxZoom: 19
         }).addTo(mapInstance.current);
 
+        // Init Cluster Group
         clusterGroup.current = L.markerClusterGroup({
             showCoverageOnHover: false,
             zoomToBoundsOnClick: true,
@@ -65,9 +70,23 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, onHoverPlace, 
             }
         });
         mapInstance.current.addLayer(clusterGroup.current);
+
       } catch (e) { console.error("Map init failed", e); }
     }
+
+    // Resize Observer to handle layout changes (e.g., sidebar appearing)
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapInstance.current) {
+        mapInstance.current.invalidateSize();
+      }
+    });
+    
+    if (mapRef.current) {
+      resizeObserver.observe(mapRef.current);
+    }
+
     return () => {
+        resizeObserver.disconnect();
         if (mapInstance.current) {
             mapInstance.current.remove();
             mapInstance.current = null;
@@ -75,6 +94,7 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, onHoverPlace, 
     };
   }, []);
 
+  // Update Markers
   useEffect(() => {
     const map = mapInstance.current;
     if (!map || !clusterGroup.current) return;
@@ -91,7 +111,7 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, onHoverPlace, 
       const [lat, lng] = validCoords;
       const color = getCategoryColor(p.category);
       
-      // Modern Pin Design
+      // Modern Pin Design SVG
       const svgHtml = `
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" stroke="white" stroke-width="2" style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); width: 100%; height: 100%;">
              <path d="M12 0c-4.418 0-8 3.582-8 8 0 5.018 7.132 14.896 7.429 15.296.149.201.384.319.633.319.25 0 .485-.119.634-.321.295-.402 7.304-10.293 7.304-15.294 0-4.418-3.582-8-8-8zm0 5c1.657 0 3 1.343 3 3s-1.343 3-3 3-3-1.343-3-3 1.343-3 3-3z"/>
@@ -145,6 +165,7 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, onHoverPlace, 
     }
   }, [places]);
 
+  // Handle Selection Animation
   useEffect(() => {
     if (!selectedPlaceId || !mapInstance.current || !clusterGroup.current) return;
     const marker = markersMap.current.get(selectedPlaceId);
@@ -156,6 +177,7 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, onHoverPlace, 
     }
   }, [selectedPlaceId]);
 
+  // Handle Hover Animation
   useEffect(() => {
     const pin = document.getElementById(`pin-${hoveredPlaceId}`);
     if (pin) { pin.style.transform = 'translate(-50%, -100%) scale(1.3)'; pin.style.zIndex = '1000'; }
