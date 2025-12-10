@@ -111,3 +111,29 @@ export const generateCSV = (result: AnalysisResult): string => {
 
   return csv;
 };
+
+export const shareNativeFile = async (result: AnalysisResult, filename: string): Promise<boolean> => {
+  const kmlContent = generateKML(result);
+  const file = new File([kmlContent], filename, { type: 'application/vnd.google-earth.kml+xml' });
+
+  // Cast navigator to any to avoid TS errors if types are outdated
+  const nav = navigator as any;
+
+  if (nav.share && nav.canShare && nav.canShare({ files: [file] })) {
+    try {
+      await nav.share({
+        files: [file],
+        title: 'MapSieve 旅遊指南',
+        text: '這是由 MapSieve AI 生成的旅遊地圖，請選擇以 Apple Maps 或 Google Earth 開啟。',
+      });
+      return true;
+    } catch (error: any) {
+      // AbortError usually means user cancelled
+      if (error.name !== 'AbortError') {
+        console.error('Share failed:', error);
+      }
+      return false;
+    }
+  }
+  return false;
+};

@@ -7,7 +7,7 @@ import MapView from './components/MapView';
 import ChatWidget from './components/ChatWidget';
 import ApiKeyModal from './components/ApiKeyModal';
 import AddDataModal from './components/AddDataModal';
-import { generateCSV, generateKML, downloadFile } from './services/exportService';
+import { generateCSV, generateKML, downloadFile, shareNativeFile } from './services/exportService';
 
 const LOADING_MESSAGES = [
   "正在探索您的遊記內容...",
@@ -177,6 +177,17 @@ const App: React.FC = () => {
   const handleExportKML = () => { if (result) { downloadFile(`mapsieve-${Date.now()}.kml`, generateKML(result), 'application/vnd.google-earth.kml+xml'); setIsExportMenuOpen(false); }};
   const handleExportCSV = () => { if (result) { downloadFile(`mapsieve-${Date.now()}.csv`, generateCSV(result), 'text/csv;charset=utf-8;'); setIsExportMenuOpen(false); }};
 
+  const handleShare = async () => {
+    if (!result) return;
+    const filename = `mapsieve-guide-${Date.now()}.kml`;
+    const success = await shareNativeFile(result, filename);
+    if (!success) {
+      // Fallback: If sharing files isn't supported (e.g. Desktop), download KML and inform user
+      alert("此裝置不支援直接傳送檔案至 Apple Maps。\n\n已為您下載 KML 檔，請將檔案傳送至 iPhone/iPad 並選擇以「地圖」開啟（或建立指南）。");
+      handleExportKML();
+    }
+  };
+
   const isFilterActive = activeCategory !== 'ALL' || activeLocation !== 'ALL' || activeDistrict !== 'ALL' || sortBy !== 'DEFAULT' || searchQuery !== '';
 
   const getFilteredAndSortedPlaces = () => {
@@ -223,36 +234,43 @@ const App: React.FC = () => {
       <AddDataModal isOpen={showAddDataModal} onClose={() => setShowAddDataModal(false)} onAnalyze={handleAppendAnalyze} isLoading={isLoading} />
 
       {/* Modern Header */}
-      <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between px-6 shrink-0 z-50 sticky top-0">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl shadow-lg shadow-primary-500/30 flex items-center justify-center text-white">
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between px-4 sm:px-6 shrink-0 z-50 sticky top-0">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl shadow-lg shadow-primary-500/30 flex items-center justify-center text-white shrink-0">
+             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
                <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
              </svg>
           </div>
-          <h1 className="text-xl font-bold text-slate-800 tracking-tight">
+          <h1 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight whitespace-nowrap">
             MapSieve <span className="text-primary-600">AI</span>
           </h1>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
           <button onClick={() => setShowApiKeyModal(true)} className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors" title="Settings">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
           </button>
 
           {(result || isLoading) && (
-            <div className="flex items-center gap-3">
-              <button onClick={() => setShowAddDataModal(true)} disabled={isLoading} className="hidden sm:flex items-center gap-2 px-4 py-2 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-full text-sm font-semibold transition-all">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                <span>新增</span>
+            <div className="flex items-center gap-1.5 sm:gap-3">
+              <button onClick={() => setShowAddDataModal(true)} disabled={isLoading} className="flex items-center gap-2 px-3 py-2 sm:px-4 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-full text-sm font-semibold transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                <span className="hidden sm:inline">新增</span>
+              </button>
+              
+              <button disabled={isLoading} onClick={handleShare} className="flex items-center gap-1.5 px-3 py-2 text-slate-600 hover:text-primary-600 hover:bg-slate-100 rounded-full transition-all text-sm font-medium group" title="分享至 Apple Maps">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                <span className="hidden lg:inline">分享指南</span>
               </button>
 
               <div className="relative">
-                <button disabled={isLoading} onClick={() => setIsExportMenuOpen(!isExportMenuOpen)} className="p-2 text-slate-500 hover:text-primary-600 hover:bg-slate-100 rounded-full">
+                <button disabled={isLoading} onClick={() => setIsExportMenuOpen(!isExportMenuOpen)} className="p-2 text-slate-500 hover:text-primary-600 hover:bg-slate-100 rounded-full" title="匯出選項">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                 </button>
                 {isExportMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-100 rounded-xl shadow-xl py-2 z-50">
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-100 rounded-xl shadow-xl py-2 z-50 animate-fade-in-up">
                       <button onClick={handleExportKML} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">匯出 Google Earth (KML)</button>
                       <button onClick={handleExportCSV} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">匯出 Excel (CSV)</button>
                   </div>
@@ -260,7 +278,10 @@ const App: React.FC = () => {
                 {isExportMenuOpen && <div className="fixed inset-0 z-40" onClick={() => setIsExportMenuOpen(false)}></div>}
               </div>
               
-              <button disabled={isLoading} onClick={handleReset} className="px-4 py-2 text-sm font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-colors">重置</button>
+              <button disabled={isLoading} onClick={handleReset} className="p-2 sm:px-4 sm:py-2 text-sm font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-colors" title="重置">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                <span className="hidden sm:inline">重置</span>
+              </button>
             </div>
           )}
         </div>
@@ -402,10 +423,10 @@ const App: React.FC = () => {
                         <div className="animate-slide-up w-full max-w-6xl mx-auto pb-20">
                             
                             {/* Mobile Filters */}
-                            <div className="md:hidden mb-6 space-y-3 sticky top-0 bg-slate-50/95 backdrop-blur-sm z-20 py-2 -mx-4 px-4">
+                            <div className="md:hidden mb-6 space-y-3 sticky top-0 bg-slate-50/95 backdrop-blur-sm z-20 py-2 -mx-4 px-4 shadow-sm">
                                 <div className="flex gap-2">
-                                    <input type="text" className="flex-1 bg-white border-none rounded-xl shadow-sm py-2.5 px-4 text-sm focus:ring-2 focus:ring-primary-200" placeholder="搜尋..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                                    <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="bg-white border-none rounded-xl shadow-sm py-2 px-4 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-primary-200">
+                                    <input type="text" className="flex-1 bg-white border-none rounded-xl shadow-sm py-2.5 px-4 text-base focus:ring-2 focus:ring-primary-200" placeholder="搜尋..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                                    <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="bg-white border-none rounded-xl shadow-sm py-2 px-4 text-base font-bold text-slate-600 focus:ring-2 focus:ring-primary-200">
                                         <option value="DEFAULT">推薦</option>
                                         <option value="RATING_DESC">評分</option>
                                     </select>
@@ -429,7 +450,7 @@ const App: React.FC = () => {
                                                         <div className="h-px bg-slate-200 flex-grow"></div>
                                                         <span className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-xs font-bold">{groupedPlaces.groups[key].length}</span>
                                                     </div>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-6">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
                                                         {groupedPlaces.groups[key].map(place => (
                                                             <PlaceCard key={place.id} id={`card-${place.id}`} place={place} onDelete={handleRemovePlace} isSelected={selectedPlaceId === place.id} isHovered={hoveredPlaceId === place.id} onHover={setHoveredPlaceId} onClick={() => setSelectedPlaceId(place.id)} />
                                                         ))}
@@ -438,7 +459,7 @@ const App: React.FC = () => {
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-6">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
                                             {placesToShow.map((place) => (
                                                 <PlaceCard key={place.id} id={`card-${place.id}`} place={place} onDelete={handleRemovePlace} isSelected={selectedPlaceId === place.id} isHovered={hoveredPlaceId === place.id} onHover={setHoveredPlaceId} onClick={() => setSelectedPlaceId(place.id)} />
                                             ))}

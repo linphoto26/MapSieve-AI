@@ -91,12 +91,12 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ places, apiKey }) => {
   if (places.length === 0) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end pointer-events-none">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 flex flex-col items-end pointer-events-none">
       
       {/* Chat Window */}
       <div 
         className={`
-          pointer-events-auto bg-white/80 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl w-80 sm:w-96 flex flex-col transition-all duration-300 origin-bottom-right mb-4 overflow-hidden
+          pointer-events-auto bg-white/80 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl w-[calc(100vw-32px)] sm:w-96 flex flex-col transition-all duration-300 origin-bottom-right mb-4 overflow-hidden
           ${isOpen ? 'opacity-100 scale-100 h-[500px]' : 'opacity-0 scale-90 h-0'}
         `}
       >
@@ -153,7 +153,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ places, apiKey }) => {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyPress}
               placeholder="問問關於這些地點的問題..."
-              className="w-full bg-gray-100 border-none rounded-full py-2 pl-4 pr-10 text-sm focus:ring-2 focus:ring-systemBlue/50"
+              className="w-full bg-gray-100 border-none rounded-full py-2 pl-4 pr-10 text-base sm:text-sm focus:ring-2 focus:ring-systemBlue/50"
             />
             <button 
               onClick={handleSend}
