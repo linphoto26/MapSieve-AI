@@ -422,19 +422,39 @@ const App: React.FC = () => {
                     {result && (
                         <div className="animate-slide-up w-full max-w-6xl mx-auto pb-20">
                             
-                            {/* Mobile Filters */}
-                            <div className="md:hidden mb-6 space-y-3 sticky top-0 bg-slate-50/95 backdrop-blur-sm z-20 py-2 -mx-4 px-4 shadow-sm">
+                            {/* Mobile Filters (RWD Enhanced) */}
+                            <div className="md:hidden mb-6 space-y-3 sticky top-0 bg-slate-50/95 backdrop-blur-sm z-20 py-2 -mx-4 px-4 shadow-sm transition-all">
                                 <div className="flex gap-2">
-                                    <input type="text" className="flex-1 bg-white border-none rounded-xl shadow-sm py-2.5 px-4 text-base focus:ring-2 focus:ring-primary-200" placeholder="搜尋..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                                    <input type="text" className="flex-1 bg-white border-none rounded-xl shadow-sm py-2.5 px-4 text-base focus:ring-2 focus:ring-primary-200 placeholder-slate-400 text-slate-700" placeholder="搜尋..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                                     <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="bg-white border-none rounded-xl shadow-sm py-2 px-4 text-base font-bold text-slate-600 focus:ring-2 focus:ring-primary-200">
                                         <option value="DEFAULT">推薦</option>
                                         <option value="RATING_DESC">評分</option>
+                                        <option value="PRICE_ASC">價格</option>
+                                        <option value="NAME_ASC">名稱</option>
                                     </select>
                                 </div>
+
+                                <div className="bg-white p-1 rounded-lg border border-slate-200 flex shadow-sm">
+                                    <button onClick={() => setViewMode('CATEGORY')} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'CATEGORY' ? 'bg-primary-50 text-primary-700 shadow-sm' : 'text-slate-500'}`}>主題分類</button>
+                                    <button onClick={() => setViewMode('LOCATION')} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'LOCATION' ? 'bg-primary-50 text-primary-700 shadow-sm' : 'text-slate-500'}`}>地區篩選</button>
+                                </div>
+
                                 <div className="flex overflow-x-auto gap-2 pb-1 hide-scrollbar">
-                                    {Object.values(CategoryType).map(cat => (
-                                        <button key={cat} onClick={() => setActiveCategory(activeCategory === cat ? 'ALL' : cat)} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border ${activeCategory === cat ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-slate-600 border-slate-200'}`}>{categoryLabels[cat]}</button>
-                                    ))}
+                                    {viewMode === 'CATEGORY' ? (
+                                        <>
+                                            <button onClick={() => setActiveCategory('ALL')} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border ${activeCategory === 'ALL' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-slate-600 border-slate-200'}`}>全部</button>
+                                            {Object.values(CategoryType).map(cat => (
+                                                <button key={cat} onClick={() => setActiveCategory(activeCategory === cat ? 'ALL' : cat)} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border ${activeCategory === cat ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-slate-600 border-slate-200'}`}>{categoryLabels[cat]}</button>
+                                            ))}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button onClick={() => { setActiveLocation('ALL'); setActiveDistrict('ALL'); }} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border ${activeLocation === 'ALL' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-slate-600 border-slate-200'}`}>全部地區</button>
+                                            {uniqueCities.map(city => (
+                                                <button key={city} onClick={() => { setActiveLocation(city); setActiveDistrict('ALL'); }} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border ${activeLocation === city ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-slate-600 border-slate-200'}`}>{city}</button>
+                                            ))}
+                                        </>
+                                    )}
                                 </div>
                             </div>
 

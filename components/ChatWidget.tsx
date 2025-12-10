@@ -97,7 +97,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ places, apiKey }) => {
       <div 
         className={`
           pointer-events-auto bg-white/80 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl w-[calc(100vw-32px)] sm:w-96 flex flex-col transition-all duration-300 origin-bottom-right mb-4 overflow-hidden
-          ${isOpen ? 'opacity-100 scale-100 h-[500px]' : 'opacity-0 scale-90 h-0'}
+          ${isOpen ? 'opacity-100 scale-100 h-[500px] max-h-[80vh]' : 'opacity-0 scale-90 h-0'}
         `}
       >
         {/* Header */}

@@ -89,7 +89,7 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onAnalyze,
           
           <textarea
             ref={textareaRef}
-            className={`w-full h-64 p-4 text-base text-gray-800 placeholder-gray-400 bg-gray-50 border focus:ring-2 rounded-xl resize-none mb-2 ${errorMessage ? 'border-red-300 focus:border-red-500 focus:ring-red-100' : 'border-gray-200 focus:border-systemBlue focus:ring-blue-100'}`}
+            className={`w-full h-48 sm:h-64 p-4 text-base text-gray-800 placeholder-gray-400 bg-gray-50 border focus:ring-2 rounded-xl resize-none mb-2 ${errorMessage ? 'border-red-300 focus:border-red-500 focus:ring-red-100' : 'border-gray-200 focus:border-systemBlue focus:ring-blue-100'}`}
             placeholder="在此貼上內容..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
