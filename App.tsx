@@ -1,74 +1,60 @@
-
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { analyzeMapData } from './services/geminiService';
+import { analyzeMapData, deduplicatePlaces } from './services/geminiService';
 import { AnalysisResult, CategoryType, Place } from './types';
 import PlaceCard from './components/PlaceCard';
 import SkeletonCard from './components/SkeletonCard';
 import MapView from './components/MapView';
 import ChatWidget from './components/ChatWidget';
 import ApiKeyModal from './components/ApiKeyModal';
+import AddDataModal from './components/AddDataModal';
 import { generateCSV, generateKML, downloadFile } from './services/exportService';
 
 const LOADING_MESSAGES = [
-  "AI 正在閱讀您的遊記內容...",
-  "正在挖掘文章中提到的隱藏景點...",
-  "正在分析作者的推薦理由與評價...",
-  "正在為您標記地圖座標...",
-  "正在整理景點分類標籤...",
-  "地圖即將生成，請稍候..."
+  "正在探索您的遊記內容...",
+  "正在發掘文中隱藏的秘境...",
+  "正在分析部落客的私房推薦...",
+  "正在定位地圖座標...",
+  "即將完成您的專屬地圖...",
 ];
 
 const App: React.FC = () => {
-  // PERSISTENCE: Initialize state from localStorage if available
-  const [rawInput, setRawInput] = useState<string>(() => {
-    return localStorage.getItem('mapsieve_input') || '';
-  });
-  
+  // PERSISTENCE
+  const [rawInput, setRawInput] = useState<string>(() => localStorage.getItem('mapsieve_input') || '');
   const [result, setResult] = useState<AnalysisResult | null>(() => {
-    const saved = localStorage.getItem('mapsieve_result');
     try {
+      const saved = localStorage.getItem('mapsieve_result');
       return saved ? JSON.parse(saved) : null;
-    } catch (e) {
-      console.error("Failed to parse saved result", e);
-      return null;
-    }
+    } catch { return null; }
   });
-
-  const [apiKey, setApiKey] = useState<string>(() => {
-    return localStorage.getItem('mapsieve_api_key') || '';
-  });
+  const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('mapsieve_api_key') || '');
+  
+  // MODALS
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [showAddDataModal, setShowAddDataModal] = useState(false);
 
+  // APP STATE
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loadingMessage, setLoadingMessage] = useState<string>(LOADING_MESSAGES[0]);
   const [error, setError] = useState<string | null>(null);
   
-  // Filter States
+  // FILTER & SORT
   const [viewMode, setViewMode] = useState<'CATEGORY' | 'LOCATION'>('CATEGORY');
   const [activeCategory, setActiveCategory] = useState<CategoryType | 'ALL'>('ALL');
-  
-  // Location Hierarchy States
-  const [activeLocation, setActiveLocation] = useState<string>('ALL'); // Currently Selected City
-  const [activeDistrict, setActiveDistrict] = useState<string>('ALL'); // Currently Selected District
-  
-  const [sortBy, setSortBy] = useState<'DEFAULT' | 'PRICE_ASC' | 'RATING_DESC' | 'LOCATION_ASC' | 'SUBCATEGORY_ASC'>('DEFAULT');
+  const [activeLocation, setActiveLocation] = useState<string>('ALL');
+  const [activeDistrict, setActiveDistrict] = useState<string>('ALL');
+  const [sortBy, setSortBy] = useState<'DEFAULT' | 'PRICE_ASC' | 'RATING_DESC' | 'NAME_ASC'>('DEFAULT');
   const [searchQuery, setSearchQuery] = useState<string>('');
   
-  // State for Selection Highlight
+  // INTERACTION
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const [hoveredPlaceId, setHoveredPlaceId] = useState<string | null>(null);
-
-  // Export State
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
-
-  // Back To Top State
   const [showBackToTop, setShowBackToTop] = useState(false);
   const mainContentRef = useRef<HTMLDivElement>(null);
-
-  // Mobile Bottom Sheet State
   const [isBottomSheetExpanded, setIsBottomSheetExpanded] = useState(false);
 
-  // Message rotation effect
+  // --- EFFECTS ---
+
   useEffect(() => {
     let interval: any;
     if (isLoading) {
@@ -82,79 +68,46 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [isLoading]);
 
-  // PERSISTENCE: Save rawInput to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('mapsieve_input', rawInput);
-  }, [rawInput]);
-
-  // PERSISTENCE: Save result to localStorage whenever it changes
-  useEffect(() => {
-    if (result) {
-      localStorage.setItem('mapsieve_result', JSON.stringify(result));
-    } else {
-      localStorage.removeItem('mapsieve_result');
-    }
+  useEffect(() => { localStorage.setItem('mapsieve_input', rawInput); }, [rawInput]);
+  useEffect(() => { 
+    if (result) localStorage.setItem('mapsieve_result', JSON.stringify(result)); 
+    else localStorage.removeItem('mapsieve_result');
   }, [result]);
 
-  const handleSaveApiKey = (key: string) => {
-    setApiKey(key);
-    localStorage.setItem('mapsieve_api_key', key);
-  };
+  const handleSaveApiKey = (key: string) => { setApiKey(key); localStorage.setItem('mapsieve_api_key', key); };
 
-  // Scroll Detection for Back To Top
   useEffect(() => {
-    const handleScroll = () => {
-      if (mainContentRef.current) {
-        setShowBackToTop(mainContentRef.current.scrollTop > 300);
-      }
-    };
-    const element = mainContentRef.current;
-    if (element) {
-      element.addEventListener('scroll', handleScroll);
-    }
-    return () => {
-      if (element) {
-        element.removeEventListener('scroll', handleScroll);
-      }
-    };
+    const handleScroll = () => { if (mainContentRef.current) setShowBackToTop(mainContentRef.current.scrollTop > 300); };
+    mainContentRef.current?.addEventListener('scroll', handleScroll);
+    return () => mainContentRef.current?.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const scrollToTop = () => {
-    mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const scrollToTop = () => mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
 
-  // Scroll to selected card when selectedPlaceId changes
   useEffect(() => {
     if (selectedPlaceId) {
         const element = document.getElementById(`card-${selectedPlaceId}`);
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
+        element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [selectedPlaceId]);
+
+  // --- LOGIC HELPER ---
 
   const parseLocation = (loc: string) => {
     if (!loc) return { city: '未分類地區', district: '其他' };
     let cleaned = loc.replace(/^(台灣|臺灣|日本|南韓|韓國|泰國|越南)\s*/, '').trim();
     if (!cleaned) return { city: '未分類地區', district: '其他' };
     const parts = cleaned.split(/\s+/);
-    if (parts.length >= 2) {
-        return { city: parts[0], district: parts.slice(1).join(' ') };
-    }
+    if (parts.length >= 2) return { city: parts[0], district: parts.slice(1).join(' ') };
     const cityMatch = cleaned.match(/^(.{2,}[市縣都府])(.+)$/);
-    if (cityMatch) {
-        return { city: cityMatch[1], district: cityMatch[2] };
-    }
+    if (cityMatch) return { city: cityMatch[1], district: cityMatch[2] };
     return { city: cleaned, district: '市區' };
   };
 
   const uniqueCities = useMemo(() => {
     if (!result) return [];
     const cities = new Set<string>();
-    result.places.forEach(p => {
-      const { city } = parseLocation(p.locationGuess || '');
-      cities.add(city);
-    });
+    result.places.forEach(p => cities.add(parseLocation(p.locationGuess || '').city));
     return Array.from(cities).sort((a, b) => a.localeCompare(b, 'zh-TW'));
   }, [result]);
 
@@ -163,149 +116,95 @@ const App: React.FC = () => {
     const districts = new Set<string>();
     result.places.forEach(p => {
         const { city, district } = parseLocation(p.locationGuess || '');
-        if (city === activeLocation) {
-            districts.add(district);
-        }
+        if (city === activeLocation) districts.add(district);
     });
     return Array.from(districts).sort((a, b) => a.localeCompare(b, 'zh-TW'));
   }, [result, activeLocation]);
 
   const categoryLabels: Record<CategoryType, string> = {
     [CategoryType.FOOD]: "美食",
-    [CategoryType.DRINK]: "飲品",
+    [CategoryType.DRINK]: "咖啡/飲品",
     [CategoryType.SIGHTSEEING]: "景點",
     [CategoryType.SHOPPING]: "購物",
-    [CategoryType.ACTIVITY]: "活動",
+    [CategoryType.ACTIVITY]: "體驗活動",
     [CategoryType.LODGING]: "住宿",
     [CategoryType.OTHER]: "其他"
   };
 
   const handleAnalyze = async () => {
     if (!rawInput.trim()) return;
-    
-    // Check API Key
-    if (!apiKey) {
-      setShowApiKeyModal(true);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
+    if (!apiKey) { setShowApiKeyModal(true); return; }
+    setIsLoading(true); setError(null);
     try {
       const data = await analyzeMapData(rawInput, apiKey);
       setResult(data);
     } catch (err: any) {
-      setError(err.message || "我們無法處理此清單，請嘗試提供更清楚的內容。");
-    } finally {
-      setIsLoading(false);
-    }
+      setError(err.message || "處理失敗，請稍後再試。");
+    } finally { setIsLoading(false); }
+  };
+
+  const handleAppendAnalyze = async (text: string) => {
+    if (!text.trim()) return;
+    if (!apiKey) { setShowApiKeyModal(true); return; }
+    setIsLoading(true);
+    try {
+        const newData = await analyzeMapData(text, apiKey);
+        setResult(prev => {
+            if (!prev) return newData;
+            const combinedPlaces = [...prev.places, ...newData.places];
+            const uniquePlaces = deduplicatePlaces(combinedPlaces);
+            return { ...prev, summary: prev.summary + "\n\n---\n\n" + newData.summary, places: uniquePlaces };
+        });
+    } catch (err: any) { throw err; } finally { setIsLoading(false); }
   };
 
   const handleRemovePlace = (id: string) => {
-    setResult(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        places: prev.places.filter(p => p.id !== id)
-      };
-    });
+    setResult(prev => prev ? { ...prev, places: prev.places.filter(p => p.id !== id) } : null);
   };
 
   const handleReset = () => {
-    setResult(null);
-    setRawInput('');
-    setError(null);
-    setActiveCategory('ALL');
-    setActiveLocation('ALL');
-    setActiveDistrict('ALL');
-    setViewMode('CATEGORY');
-    setSearchQuery('');
-    setSelectedPlaceId(null);
-    setHoveredPlaceId(null);
-    localStorage.removeItem('mapsieve_result');
-    localStorage.removeItem('mapsieve_input');
+    setResult(null); setRawInput(''); setError(null); setActiveCategory('ALL');
+    setActiveLocation('ALL'); setActiveDistrict('ALL'); setViewMode('CATEGORY'); setSearchQuery('');
+    setSortBy('DEFAULT'); setSelectedPlaceId(null); setHoveredPlaceId(null);
+    localStorage.removeItem('mapsieve_result'); localStorage.removeItem('mapsieve_input');
     window.history.replaceState({}, '', window.location.pathname);
   };
 
   const handleResetFilters = () => {
-    setActiveCategory('ALL');
-    setActiveLocation('ALL');
-    setActiveDistrict('ALL');
-    setSortBy('DEFAULT');
-    setSearchQuery('');
+    setActiveCategory('ALL'); setActiveLocation('ALL'); setActiveDistrict('ALL'); setSortBy('DEFAULT'); setSearchQuery('');
   };
 
-  const handleExportKML = () => {
-    if (!result) return;
-    const kml = generateKML(result);
-    downloadFile(`mapsieve-export-${Date.now()}.kml`, kml, 'application/vnd.google-earth.kml+xml');
-    setIsExportMenuOpen(false);
-  };
+  const handleExportKML = () => { if (result) { downloadFile(`mapsieve-${Date.now()}.kml`, generateKML(result), 'application/vnd.google-earth.kml+xml'); setIsExportMenuOpen(false); }};
+  const handleExportCSV = () => { if (result) { downloadFile(`mapsieve-${Date.now()}.csv`, generateCSV(result), 'text/csv;charset=utf-8;'); setIsExportMenuOpen(false); }};
 
-  const handleExportCSV = () => {
-    if (!result) return;
-    const csv = generateCSV(result);
-    downloadFile(`mapsieve-export-${Date.now()}.csv`, csv, 'text/csv;charset=utf-8;');
-    setIsExportMenuOpen(false);
-  };
-
-  const isFilterActive = activeCategory !== 'ALL' || 
-                         activeLocation !== 'ALL' || 
-                         activeDistrict !== 'ALL' || 
-                         sortBy !== 'DEFAULT' || 
-                         searchQuery !== '';
+  const isFilterActive = activeCategory !== 'ALL' || activeLocation !== 'ALL' || activeDistrict !== 'ALL' || sortBy !== 'DEFAULT' || searchQuery !== '';
 
   const getFilteredAndSortedPlaces = () => {
     if (!result) return [];
     let filtered = result.places;
-    
     if (viewMode === 'CATEGORY') {
-        if (activeCategory !== 'ALL') {
-            filtered = filtered.filter(p => p.category === activeCategory);
-        }
+        if (activeCategory !== 'ALL') filtered = filtered.filter(p => p.category === activeCategory);
     } else {
         if (activeLocation !== 'ALL') {
-             filtered = filtered.filter(p => {
-                const { city } = parseLocation(p.locationGuess || '');
-                return city === activeLocation;
-             });
-             
-             if (activeDistrict !== 'ALL') {
-                filtered = filtered.filter(p => {
-                    const { district } = parseLocation(p.locationGuess || '');
-                    return district === activeDistrict;
-                });
-             }
+             filtered = filtered.filter(p => parseLocation(p.locationGuess || '').city === activeLocation);
+             if (activeDistrict !== 'ALL') filtered = filtered.filter(p => parseLocation(p.locationGuess || '').district === activeDistrict);
         }
     }
-
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(p => 
-        p.name.toLowerCase().includes(query) ||
-        p.subCategory.toLowerCase().includes(query) ||
-        p.tags.some(tag => tag.toLowerCase().includes(query)) ||
-        (p.locationGuess || '').toLowerCase().includes(query)
-      );
+      filtered = filtered.filter(p => p.name.toLowerCase().includes(query) || p.subCategory.toLowerCase().includes(query) || p.tags.some(tag => tag.toLowerCase().includes(query)));
     }
-
     return filtered.sort((a, b) => {
       if (sortBy === 'RATING_DESC') return (b.ratingPrediction || 0) - (a.ratingPrediction || 0);
-      if (sortBy === 'PRICE_ASC') {
-        const priceMap: Record<string, number> = { 'Free': 0, '$': 1, '$$': 2, '$$$': 3, '$$$$': 4, 'Unknown': 5 };
-        return priceMap[a.priceLevel] - priceMap[b.priceLevel];
-      }
-      if (sortBy === 'LOCATION_ASC') return (a.locationGuess || '').localeCompare(b.locationGuess || '', 'zh-TW');
-      if (sortBy === 'SUBCATEGORY_ASC') return (a.subCategory || '').localeCompare(b.subCategory || '', 'zh-TW');
+      if (sortBy === 'PRICE_ASC') return (a.priceLevel === 'Free' ? 0 : a.priceLevel.length) - (b.priceLevel === 'Free' ? 0 : b.priceLevel.length);
+      if (sortBy === 'NAME_ASC') return a.name.localeCompare(b.name, 'zh-TW');
       return 0; 
     });
   };
 
   const placesToShow = getFilteredAndSortedPlaces();
-
   const groupedPlaces = useMemo(() => {
-    if (viewMode !== 'LOCATION') return null;
-    if (activeLocation !== 'ALL' && activeDistrict !== 'ALL') return null;
+    if (viewMode !== 'LOCATION' || (activeLocation !== 'ALL' && activeDistrict !== 'ALL')) return null;
     const groups: Record<string, Place[]> = {};
     const groupingType = activeLocation === 'ALL' ? 'CITY' : 'DISTRICT';
     placesToShow.forEach(p => {
@@ -314,67 +213,55 @@ const App: React.FC = () => {
       if (!groups[key]) groups[key] = [];
       groups[key].push(p);
     });
-    const sortedKeys = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'zh-TW'));
-    return { groups, sortedKeys, groupingType };
+    return { groups, sortedKeys: Object.keys(groups).sort((a, b) => a.localeCompare(b, 'zh-TW')), groupingType };
   }, [placesToShow, viewMode, activeLocation, activeDistrict]);
 
-  // --- UI RENDER START ---
-
+  // --- RENDER ---
   return (
-    <div className="flex flex-col h-screen w-full bg-gray-50 text-gray-800 font-sans overflow-hidden">
-      
-      <ApiKeyModal 
-        isOpen={showApiKeyModal} 
-        onClose={() => setShowApiKeyModal(false)} 
-        onSave={handleSaveApiKey}
-        initialKey={apiKey}
-      />
+    <div className="flex flex-col h-screen w-full bg-slate-50 text-slate-800 font-sans overflow-hidden">
+      <ApiKeyModal isOpen={showApiKeyModal} onClose={() => setShowApiKeyModal(false)} onSave={handleSaveApiKey} initialKey={apiKey} />
+      <AddDataModal isOpen={showAddDataModal} onClose={() => setShowAddDataModal(false)} onAnalyze={handleAppendAnalyze} isLoading={isLoading} />
 
-      {/* Header */}
-      <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 shrink-0 z-50 shadow-sm relative">
+      {/* Modern Header */}
+      <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between px-6 shrink-0 z-50 sticky top-0">
         <div className="flex items-center gap-3">
-          <div className="bg-gradient-to-tr from-systemBlue to-cyan-500 text-white p-1.5 rounded-lg shadow-sm">
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 01-.806-.984A1 1 0 0021 6a1 1 0 01-1-1 1 1 0 01-1 1 1 1 0 01-1 1H21" />
+          <div className="w-9 h-9 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl shadow-lg shadow-primary-500/30 flex items-center justify-center text-white">
+             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+               <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
              </svg>
           </div>
-          <h1 className="text-xl font-bold text-gray-800 tracking-tight flex items-center gap-2">
-            MapSieve AI <span className="text-gray-400 font-light hidden sm:inline">|</span> <span className="text-gray-500 font-normal text-lg hidden sm:inline">遊記轉地圖 (Text Only)</span>
+          <h1 className="text-xl font-bold text-slate-800 tracking-tight">
+            MapSieve <span className="text-primary-600">AI</span>
           </h1>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-4">
-          
-          <button 
-            onClick={() => setShowApiKeyModal(true)}
-            className="p-2 text-gray-500 hover:text-systemBlue hover:bg-gray-100 rounded-lg"
-            title="設定 API Key"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowApiKeyModal(true)} className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors" title="Settings">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
           </button>
 
           {(result || isLoading) && (
-            <>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setShowAddDataModal(true)} disabled={isLoading} className="hidden sm:flex items-center gap-2 px-4 py-2 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-full text-sm font-semibold transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                <span>新增</span>
+              </button>
+
               <div className="relative">
-                <button disabled={isLoading} onClick={() => setIsExportMenuOpen(!isExportMenuOpen)} className="p-2 text-gray-500 hover:text-systemBlue hover:bg-gray-100 rounded-lg disabled:opacity-50">
+                <button disabled={isLoading} onClick={() => setIsExportMenuOpen(!isExportMenuOpen)} className="p-2 text-slate-500 hover:text-primary-600 hover:bg-slate-100 rounded-full">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                 </button>
                 {isExportMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-xl py-1 z-50">
-                      <button onClick={handleExportKML} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50">匯出 KML</button>
-                      <button onClick={handleExportCSV} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50">匯出 CSV</button>
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-100 rounded-xl shadow-xl py-2 z-50">
+                      <button onClick={handleExportKML} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">匯出 Google Earth (KML)</button>
+                      <button onClick={handleExportCSV} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">匯出 Excel (CSV)</button>
                   </div>
                 )}
                 {isExportMenuOpen && <div className="fixed inset-0 z-40" onClick={() => setIsExportMenuOpen(false)}></div>}
               </div>
-
-              <div className="h-6 w-px bg-gray-300 hidden sm:block"></div>
               
-              <button disabled={isLoading} onClick={handleReset} className="px-4 py-2 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium disabled:opacity-50">重置</button>
-            </>
+              <button disabled={isLoading} onClick={handleReset} className="px-4 py-2 text-sm font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-colors">重置</button>
+            </div>
           )}
         </div>
       </header>
@@ -382,37 +269,52 @@ const App: React.FC = () => {
       {/* Main Layout */}
       <div className="flex-1 flex overflow-hidden relative">
         
-        {/* --- DESKTOP: Sidebar & Content --- */}
-        <aside className="w-64 bg-white border-r border-gray-200 flex-shrink-0 hidden md:flex flex-col z-20">
-           {/* Desktop Filter Sidebar */}
-           <div className="p-4 flex flex-col h-full">
-              <div className="mb-4">
-                <input type="text" className="w-full bg-gray-100 border-none rounded-lg py-2 px-3 text-sm" placeholder="篩選列表..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} disabled={isLoading} />
+        {/* Desktop Sidebar */}
+        <aside className="w-72 bg-white/50 backdrop-blur-sm border-r border-slate-200/60 hidden md:flex flex-col z-20">
+           <div className="p-5 flex flex-col h-full">
+              <div className="mb-6 space-y-4">
+                <div className="relative">
+                   <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                   <input type="text" className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-9 pr-3 text-sm focus:ring-2 focus:ring-primary-100 focus:border-primary-400 transition-all shadow-sm placeholder:text-slate-300" placeholder="搜尋景點..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} disabled={isLoading} />
+                </div>
+                
+                <div className="relative">
+                   <select 
+                      value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}
+                      className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-3 pr-8 text-sm appearance-none cursor-pointer focus:ring-2 focus:ring-primary-100 text-slate-600 font-medium shadow-sm"
+                      disabled={isLoading}
+                   >
+                     <option value="DEFAULT">✨ 智能推薦</option>
+                     <option value="RATING_DESC">⭐ 最高評分</option>
+                     <option value="PRICE_ASC">💰 最低價格</option>
+                     <option value="NAME_ASC">🔤 名稱排序</option>
+                   </select>
+                </div>
               </div>
-              <div className="bg-gray-100 p-1 rounded-lg flex mb-4">
-                <button onClick={() => setViewMode('CATEGORY')} className={`flex-1 py-1.5 text-xs font-semibold rounded-md ${viewMode === 'CATEGORY' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>分類</button>
-                <button onClick={() => setViewMode('LOCATION')} className={`flex-1 py-1.5 text-xs font-semibold rounded-md ${viewMode === 'LOCATION' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>地區</button>
+
+              <div className="bg-slate-100/80 p-1 rounded-xl flex mb-6">
+                <button onClick={() => setViewMode('CATEGORY')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === 'CATEGORY' ? 'bg-white shadow-sm text-primary-700' : 'text-slate-500 hover:text-slate-700'}`}>主題分類</button>
+                <button onClick={() => setViewMode('LOCATION')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === 'LOCATION' ? 'bg-white shadow-sm text-primary-700' : 'text-slate-500 hover:text-slate-700'}`}>地區篩選</button>
               </div>
-              {isFilterActive && <button onClick={handleResetFilters} className="w-full mb-4 py-2 text-xs font-medium text-red-600 bg-red-50 rounded-lg">重設篩選</button>}
               
-              <div className="flex-grow overflow-y-auto custom-scrollbar">
+              <div className="flex-grow overflow-y-auto custom-scrollbar -mr-2 pr-2">
                 {result ? (
-                    <nav className="space-y-1">
+                    <nav className="space-y-1.5">
                         {viewMode === 'CATEGORY' ? (
                             <>
-                                <button onClick={() => setActiveCategory('ALL')} className={`w-full text-left px-3 py-2 rounded-lg text-sm ${activeCategory === 'ALL' ? 'bg-blue-50 text-systemBlue font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}>全部類別</button>
+                                <button onClick={() => setActiveCategory('ALL')} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-all ${activeCategory === 'ALL' ? 'bg-primary-50 text-primary-700 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}>全部顯示</button>
                                 {Object.values(CategoryType).map(cat => (
-                                    <button key={cat} onClick={() => setActiveCategory(cat)} className={`w-full text-left px-3 py-2 rounded-lg text-sm flex justify-between ${activeCategory === cat ? 'bg-gray-100 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
+                                    <button key={cat} onClick={() => setActiveCategory(cat)} className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm transition-all group ${activeCategory === cat ? 'bg-slate-100 font-bold text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
                                         <span>{categoryLabels[cat]}</span>
-                                        {activeCategory === cat && <div className="w-1.5 h-1.5 rounded-full bg-systemBlue mt-2"></div>}
+                                        {activeCategory === cat && <div className="w-1.5 h-1.5 rounded-full bg-primary-500"></div>}
                                     </button>
                                 ))}
                             </>
                         ) : (
                             <>
-                                <button onClick={() => { setActiveLocation('ALL'); setActiveDistrict('ALL'); }} className={`w-full text-left px-3 py-2 rounded-lg text-sm ${activeLocation === 'ALL' ? 'bg-blue-50 text-systemBlue font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}>全部縣市</button>
+                                <button onClick={() => { setActiveLocation('ALL'); setActiveDistrict('ALL'); }} className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-all ${activeLocation === 'ALL' ? 'bg-primary-50 text-primary-700 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}>全部地區</button>
                                 {uniqueCities.map(city => (
-                                    <button key={city} onClick={() => { setActiveLocation(city); setActiveDistrict('ALL'); }} className={`w-full text-left px-3 py-2 rounded-lg text-sm flex justify-between ${activeLocation === city ? 'bg-gray-100 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
+                                    <button key={city} onClick={() => { setActiveLocation(city); setActiveDistrict('ALL'); }} className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm transition-all ${activeLocation === city ? 'bg-slate-100 font-bold text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
                                         <span>{city}</span>
                                     </button>
                                 ))}
@@ -420,196 +322,132 @@ const App: React.FC = () => {
                         )}
                     </nav>
                 ) : (
-                    <div className="flex items-center justify-center h-40 text-gray-400 text-xs">
-                        {isLoading ? '載入中...' : '尚無資料'}
+                    <div className="flex flex-col items-center justify-center h-40 text-slate-300 text-xs text-center px-4">
+                        <svg className="w-8 h-8 mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 01-.806-.984A1 1 0 0021 6a1 1 0 01-1-1 1 1 0 01-1 1H21" /></svg>
+                        <span>準備開始您的旅程</span>
                     </div>
                 )}
               </div>
+              
+              {isFilterActive && <button onClick={handleResetFilters} className="mt-4 w-full py-2.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors">清除所有篩選</button>}
            </div>
         </aside>
 
-        {/* --- MAIN CONTENT: Split View (Desktop) / Bottom Sheet (Mobile) --- */}
-        <main className="flex-1 relative flex flex-col md:flex-row overflow-hidden">
+        {/* Content Area */}
+        <main className="flex-1 relative flex flex-col md:flex-row overflow-hidden bg-slate-50">
             
-            {/* 1. MAP LAYER */}
+            {/* Map Layer */}
             {(result || isLoading) && (
-                <div className={`
-                    absolute inset-0 md:relative md:w-[40%] md:order-2 z-0
-                    ${!result && !isLoading ? 'hidden md:block' : ''} 
-                `}>
-                    <MapView 
-                        places={result ? placesToShow : []} 
-                        onSelectPlace={setSelectedPlaceId}
-                        onHoverPlace={setHoveredPlaceId}
-                        selectedPlaceId={selectedPlaceId}
-                        hoveredPlaceId={hoveredPlaceId}
-                    />
+                <div className={`absolute inset-0 md:relative md:w-[45%] lg:w-[40%] md:order-2 z-0 ${!result && !isLoading ? 'hidden md:block' : ''}`}>
+                    <MapView places={result ? placesToShow : []} onSelectPlace={setSelectedPlaceId} onHoverPlace={setHoveredPlaceId} selectedPlaceId={selectedPlaceId} hoveredPlaceId={hoveredPlaceId} />
                 </div>
             )}
 
-            {/* 2. LIST LAYER */}
-            <div 
-                ref={mainContentRef} 
-                className={`
-                    flex-1 bg-gray-50 
-                    md:w-[60%] md:relative md:z-auto md:h-full md:order-1
-                    transition-all duration-300 ease-in-out
-                    ${(!result && !isLoading) ? 'h-full overflow-y-auto' : 
-                      // Mobile Bottom Sheet Classes
-                      `absolute bottom-0 left-0 right-0 z-30 rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)] bg-white
-                       flex flex-col
-                       ${isBottomSheetExpanded ? 'h-[85vh]' : 'h-[35vh]'}
-                       md:h-auto md:rounded-none md:shadow-none md:bg-gray-50
-                      `
-                    }
-                `}
-            >
-                {/* Mobile Bottom Sheet Handle */}
+            {/* List Layer */}
+            <div ref={mainContentRef} className={`flex-1 md:w-[55%] lg:w-[60%] md:relative md:z-auto md:h-full md:order-1 transition-all duration-300 ease-in-out ${(!result && !isLoading) ? 'h-full overflow-y-auto' : `absolute bottom-0 left-0 right-0 z-30 rounded-t-3xl shadow-[0_-8px_30px_rgba(0,0,0,0.12)] bg-slate-50 flex flex-col ${isBottomSheetExpanded ? 'h-[85vh]' : 'h-[35vh]'} md:h-auto md:rounded-none md:shadow-none md:bg-slate-50`}`}>
+                
+                {/* Mobile Handle */}
                 {(result || isLoading) && (
-                    <div 
-                        className="md:hidden flex-shrink-0 h-8 flex items-center justify-center cursor-pointer border-b border-gray-100 touch-pan-y"
-                        onClick={() => setIsBottomSheetExpanded(!isBottomSheetExpanded)}
-                    >
-                        <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+                    <div className="md:hidden flex-shrink-0 h-8 flex items-center justify-center cursor-pointer border-b border-slate-100 touch-pan-y bg-white rounded-t-3xl" onClick={() => setIsBottomSheetExpanded(!isBottomSheetExpanded)}>
+                        <div className="w-12 h-1.5 bg-slate-200 rounded-full"></div>
                     </div>
                 )}
 
-                {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-8 scroll-smooth relative">
                     
-                    {/* Empty State / Dashboard */}
+                    {/* Empty State */}
                     {!result && !isLoading && (
-                        <div className="w-full max-w-2xl mx-auto mt-10">
-                            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="bg-blue-100 p-2 rounded-xl">
-                                        <svg className="w-6 h-6 text-systemBlue" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-                                    </div>
-                                    <h2 className="text-2xl font-bold text-gray-800">遊記轉換器 (MVP)</h2>
-                                </div>
-                                <p className="text-gray-600 mb-4">將網路遊記、部落格文章或旅遊筆記，一鍵轉換為可互動的行程地圖。AI 會自動標註文中提到的餐廳、景點與住宿。</p>
+                        <div className="w-full max-w-2xl mx-auto mt-12 animate-fade-in">
+                            <div className="text-center mb-10">
+                                <h1 className="text-4xl font-extrabold text-slate-800 mb-4 tracking-tight">
+                                    將遊記文字，<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-500 to-primary-700">轉化為您的專屬地圖</span>
+                                </h1>
+                                <p className="text-slate-500 text-lg max-w-lg mx-auto">
+                                    貼上部落格連結或遊記內容，AI 自動為您整理景點、標籤與評價。
+                                </p>
+                            </div>
+                            
+                            <div className="bg-white rounded-3xl shadow-float border border-slate-100 p-2">
                                 <textarea
-                                    className="w-full h-40 p-4 text-base text-gray-800 placeholder-gray-400 bg-gray-50 border border-gray-200 focus:border-systemBlue focus:ring-2 focus:ring-blue-100 rounded-xl resize-none"
-                                    placeholder="貼上部落格連結，或直接複製遊記內容貼在這裡..."
+                                    className="w-full h-48 p-6 text-lg text-slate-700 placeholder-slate-300 bg-transparent border-none focus:ring-0 rounded-2xl resize-none leading-relaxed"
+                                    placeholder="貼上文字內容..."
                                     value={rawInput}
                                     onChange={(e) => setRawInput(e.target.value)}
                                 />
-                                <div className="flex flex-col sm:flex-row justify-end items-center mt-4 gap-4">
-                                    <button onClick={handleAnalyze} disabled={isLoading || !rawInput.trim()} className={`w-full sm:w-auto px-8 py-2.5 rounded-lg text-sm font-bold text-white shadow-sm transition-all ${isLoading || !rawInput.trim() ? 'bg-gray-300 cursor-not-allowed' : 'bg-systemBlue hover:bg-blue-600'}`}>
-                                        {isLoading ? '處理中...' : '生成地圖'}
+                                <div className="flex justify-between items-center px-4 pb-4">
+                                    <span className="text-xs font-semibold text-slate-400 bg-slate-50 px-3 py-1 rounded-full uppercase tracking-wider">MVP Version</span>
+                                    <button onClick={handleAnalyze} disabled={isLoading || !rawInput.trim()} className={`px-8 py-3 rounded-xl text-base font-bold text-white shadow-lg shadow-primary-500/30 transition-all hover:scale-105 active:scale-95 flex items-center gap-2 ${isLoading || !rawInput.trim() ? 'bg-slate-300 cursor-not-allowed shadow-none' : 'bg-primary-600 hover:bg-primary-500'}`}>
+                                        {isLoading ? '正在分析...' : <>開始生成 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg></>}
                                     </button>
                                 </div>
-                                {error && (
-                                  <div className="mt-6 px-4 py-3 bg-red-50 border border-red-100 text-red-600 rounded-lg text-sm flex items-start gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
-                                    <span>{error}</span>
-                                  </div>
-                                )}
                             </div>
+                            {error && <div className="mt-6 p-4 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl text-sm font-medium text-center">{error}</div>}
                         </div>
                     )}
 
-                    {/* Initial Loading State: Skeletons + Engaging Message */}
+                    {/* Loading State */}
                     {isLoading && !result && (
-                        <div className="w-full max-w-7xl mx-auto flex flex-col items-center">
-                            {/* Loading Status Indicator */}
-                            <div className="bg-blue-50 border border-blue-100 rounded-full px-6 py-2 mb-8 flex items-center gap-3 shadow-sm animate-fade-in">
-                                <div className="flex space-x-1">
-                                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
-                                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-                                </div>
-                                <span className="text-sm font-bold text-blue-700">{loadingMessage}</span>
+                        <div className="w-full max-w-5xl mx-auto flex flex-col items-center justify-center min-h-[50vh]">
+                            <div className="relative w-20 h-20 mb-8">
+                                <span className="absolute inset-0 rounded-full border-4 border-slate-100"></span>
+                                <span className="absolute inset-0 rounded-full border-4 border-primary-500 border-t-transparent animate-spin"></span>
                             </div>
-
-                            {/* Skeleton Grid */}
-                            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
-                                {Array.from({ length: 4 }).map((_, i) => (
-                                    <SkeletonCard key={i} />
-                                ))}
-                            </div>
+                            <h3 className="text-xl font-bold text-slate-800 mb-2">{loadingMessage}</h3>
+                            <p className="text-slate-400">請稍候，美好的旅程即將展開</p>
                         </div>
                     )}
 
                     {/* Result List */}
                     {result && (
-                        <div className="animate-fade-in w-full max-w-7xl mx-auto">
+                        <div className="animate-slide-up w-full max-w-6xl mx-auto pb-20">
                             
                             {/* Mobile Filters */}
-                            <div className="md:hidden mb-4 space-y-2 sticky top-0 bg-white z-10 py-2 shadow-sm -mx-4 px-4">
-                                <div className="flex bg-gray-100 p-1 rounded-lg">
-                                    <button onClick={() => setViewMode('CATEGORY')} className={`flex-1 py-1.5 text-xs font-medium rounded-md ${viewMode === 'CATEGORY' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>分類</button>
-                                    <button onClick={() => setViewMode('LOCATION')} className={`flex-1 py-1.5 text-xs font-medium rounded-md ${viewMode === 'LOCATION' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>地區</button>
+                            <div className="md:hidden mb-6 space-y-3 sticky top-0 bg-slate-50/95 backdrop-blur-sm z-20 py-2 -mx-4 px-4">
+                                <div className="flex gap-2">
+                                    <input type="text" className="flex-1 bg-white border-none rounded-xl shadow-sm py-2.5 px-4 text-sm focus:ring-2 focus:ring-primary-200" placeholder="搜尋..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                                    <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="bg-white border-none rounded-xl shadow-sm py-2 px-4 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-primary-200">
+                                        <option value="DEFAULT">推薦</option>
+                                        <option value="RATING_DESC">評分</option>
+                                    </select>
                                 </div>
-                                {/* Simple horizontal scroller for mobile cats */}
                                 <div className="flex overflow-x-auto gap-2 pb-1 hide-scrollbar">
-                                    <button onClick={() => setActiveCategory('ALL')} className={`px-3 py-1 rounded-full text-xs border ${activeCategory === 'ALL' ? 'bg-black text-white' : 'bg-white text-gray-600'}`}>全部</button>
                                     {Object.values(CategoryType).map(cat => (
-                                        <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-3 py-1 rounded-full text-xs border whitespace-nowrap ${activeCategory === cat ? 'bg-systemBlue text-white border-systemBlue' : 'bg-white text-gray-600'}`}>{categoryLabels[cat]}</button>
+                                        <button key={cat} onClick={() => setActiveCategory(activeCategory === cat ? 'ALL' : cat)} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border ${activeCategory === cat ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-slate-600 border-slate-200'}`}>{categoryLabels[cat]}</button>
                                     ))}
                                 </div>
                             </div>
-
-                            {/* Secondary Nav (Districts) */}
-                            {viewMode === 'LOCATION' && activeLocation !== 'ALL' && availableDistricts.length > 0 && (
-                                <div className="sticky top-0 z-20 -mx-4 px-4 pb-4 pt-2 bg-gray-50/95 backdrop-blur-sm border-b border-gray-200 mb-6 md:static md:bg-transparent md:border-none md:p-0 md:m-0 md:mb-6">
-                                    <div className="flex overflow-x-auto gap-2 py-1 hide-scrollbar">
-                                        <button onClick={() => setActiveDistrict('ALL')} className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${activeDistrict === 'ALL' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>全部地區</button>
-                                        {availableDistricts.map(dist => (
-                                            <button key={dist} onClick={() => setActiveDistrict(dist)} className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${activeDistrict === dist ? 'bg-systemBlue text-white border-systemBlue' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>{dist}</button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
 
                             {/* Grid */}
                             {placesToShow.length > 0 ? (
                                 <>
                                     {groupedPlaces ? (
-                                        <div className="space-y-8 md:space-y-12">
+                                        <div className="space-y-10">
                                             {groupedPlaces.sortedKeys.map(key => (
                                                 <div key={key}>
-                                                    <div className="flex items-center gap-3 mb-4 md:mb-6 pb-2 border-b border-gray-200">
-                                                        <h2 className="text-lg md:text-xl font-bold text-gray-800">{key}</h2>
-                                                        <span className="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-bold">{groupedPlaces.groups[key].length}</span>
+                                                    <div className="flex items-center gap-3 mb-6">
+                                                        <h2 className="text-2xl font-bold text-slate-800">{key}</h2>
+                                                        <div className="h-px bg-slate-200 flex-grow"></div>
+                                                        <span className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-xs font-bold">{groupedPlaces.groups[key].length}</span>
                                                     </div>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-6">
                                                         {groupedPlaces.groups[key].map(place => (
-                                                            <PlaceCard 
-                                                                key={place.id} 
-                                                                id={`card-${place.id}`}
-                                                                place={place} 
-                                                                onDelete={handleRemovePlace}
-                                                                isSelected={selectedPlaceId === place.id}
-                                                                isHovered={hoveredPlaceId === place.id}
-                                                                onHover={setHoveredPlaceId}
-                                                                onClick={() => setSelectedPlaceId(place.id)}
-                                                            />
+                                                            <PlaceCard key={place.id} id={`card-${place.id}`} place={place} onDelete={handleRemovePlace} isSelected={selectedPlaceId === place.id} isHovered={hoveredPlaceId === place.id} onHover={setHoveredPlaceId} onClick={() => setSelectedPlaceId(place.id)} />
                                                         ))}
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 pb-12">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-6">
                                             {placesToShow.map((place) => (
-                                                <PlaceCard 
-                                                    key={place.id} 
-                                                    id={`card-${place.id}`}
-                                                    place={place} 
-                                                    onDelete={handleRemovePlace}
-                                                    isSelected={selectedPlaceId === place.id}
-                                                    isHovered={hoveredPlaceId === place.id}
-                                                    onHover={setHoveredPlaceId}
-                                                    onClick={() => setSelectedPlaceId(place.id)}
-                                                />
+                                                <PlaceCard key={place.id} id={`card-${place.id}`} place={place} onDelete={handleRemovePlace} isSelected={selectedPlaceId === place.id} isHovered={hoveredPlaceId === place.id} onHover={setHoveredPlaceId} onClick={() => setSelectedPlaceId(place.id)} />
                                             ))}
                                         </div>
                                     )}
                                 </>
                             ) : (
-                                <div className="flex flex-col items-center justify-center py-10 md:py-20 text-gray-400">
-                                    <p>找不到符合條件的地點</p>
+                                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                                    <p>沒有找到符合條件的地點</p>
                                 </div>
                             )}
                         </div>
@@ -618,20 +456,9 @@ const App: React.FC = () => {
             </div>
         </main>
       </div>
-
-      {/* Floating Elements */}
-      {result && <ChatWidget places={result.places} apiKey={apiKey} />}
       
-      {/* Back To Top (Only Desktop or Expanded Sheet) */}
-      {showBackToTop && (
-        <button
-            onClick={scrollToTop}
-            className="fixed bottom-24 right-6 z-40 p-3 bg-white border border-gray-200 shadow-lg rounded-full text-gray-600 hover:text-systemBlue hover:bg-gray-50"
-        >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
-        </button>
-      )}
-
+      {result && <ChatWidget places={result.places} apiKey={apiKey} />}
+      {showBackToTop && <button onClick={scrollToTop} className="fixed bottom-24 right-6 z-40 p-3 bg-white border border-slate-100 shadow-xl rounded-full text-slate-600 hover:text-primary-600 hover:scale-110 transition-all"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg></button>}
     </div>
   );
 };
