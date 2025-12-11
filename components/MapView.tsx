@@ -46,8 +46,14 @@ const MapView: React.FC<MapViewProps> = ({ places, onSelectPlace, onHoverPlace, 
     // Prevent double init
     if (!mapInstance.current) {
       try {
-        mapInstance.current = L.map(mapRef.current, { zoomControl: false, tap: false }).setView([23.5, 121], 7);
-        L.control.zoom({ position: 'bottomright' }).addTo(mapInstance.current);
+        // Init map with attributionControl: false so we can add it manually in a safe position
+        mapInstance.current = L.map(mapRef.current, { zoomControl: false, attributionControl: false, tap: false }).setView([23.5, 121], 7);
+        
+        // FIX: Move Zoom control to Top Right to avoid being covered by mobile bottom sheet
+        L.control.zoom({ position: 'topright' }).addTo(mapInstance.current);
+        
+        // FIX: Add attribution manually to Top Right to avoid being covered
+        L.control.attribution({ position: 'topright' }).addTo(mapInstance.current);
         
         // Use a cleaner, simpler map tile (CartoDB Voyager or Light)
         L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
