@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { analyzeMapData, deduplicatePlaces } from './services/geminiService';
 import { AnalysisResult, CategoryType, Place } from './types';
@@ -53,6 +52,7 @@ const App: React.FC = () => {
   const [showBackToTop, setShowBackToTop] = useState(false);
   const mainContentRef = useRef<HTMLDivElement>(null);
   const [isBottomSheetExpanded, setIsBottomSheetExpanded] = useState(false);
+  const [isMobileSearchExpanded, setIsMobileSearchExpanded] = useState(false);
 
   // --- EFFECTS ---
 
@@ -166,7 +166,7 @@ const App: React.FC = () => {
   const handleReset = () => {
     setResult(null); setRawInput(''); setError(null); setActiveCategory('ALL');
     setActiveLocation('ALL'); setActiveDistrict('ALL'); setViewMode('CATEGORY'); setSearchQuery('');
-    setSortBy('DEFAULT'); setSelectedPlaceId(null); setHoveredPlaceId(null);
+    setSortBy('DEFAULT'); setSelectedPlaceId(null); setHoveredPlaceId(null); setIsMobileSearchExpanded(false);
     localStorage.removeItem('mapsieve_result'); localStorage.removeItem('mapsieve_input');
     window.history.replaceState({}, '', window.location.pathname);
   };
@@ -424,68 +424,102 @@ const App: React.FC = () => {
                         <div className="animate-slide-up w-full max-w-6xl mx-auto pb-20">
                             
                             {/* Mobile/Tablet Sticky Filter (Hidden on lg+) */}
-                            <div className="lg:hidden mb-4 sticky top-0 bg-slate-50/95 backdrop-blur-xl z-20 py-3 -mx-4 px-4 shadow-sm border-b border-slate-200/60 transition-all">
-                                {/* Row 1: Search and Sort */}
-                                <div className="flex gap-2 mb-3">
-                                    <div className="relative flex-1">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <svg className="h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                                            </svg>
-                                        </div>
-                                        <input 
-                                            type="text" 
-                                            className="w-full bg-white border-none rounded-xl shadow-sm py-2 pl-9 pr-3 text-sm focus:ring-2 focus:ring-primary-500 placeholder-slate-400 text-slate-700" 
-                                            placeholder="搜尋..." 
-                                            value={searchQuery} 
-                                            onChange={(e) => setSearchQuery(e.target.value)} 
-                                        />
-                                    </div>
-                                    
-                                    <div className="relative shrink-0">
-                                        <select 
-                                            value={sortBy} 
-                                            onChange={(e) => setSortBy(e.target.value as any)} 
-                                            className="appearance-none bg-white border-none rounded-xl shadow-sm py-2 pl-3 pr-8 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-primary-500"
+                            <div className="lg:hidden mb-2 sticky top-0 bg-slate-50/95 backdrop-blur-xl z-20 shadow-sm border-b border-slate-200/60 transition-all -mx-4 px-4">
+                                {isMobileSearchExpanded ? (
+                                    <div className="flex items-center gap-2 py-2 animate-fade-in">
+                                        <button 
+                                            onClick={() => setIsMobileSearchExpanded(false)}
+                                            className="p-2 -ml-2 text-slate-500 hover:text-slate-700"
                                         >
-                                            <option value="DEFAULT">推薦</option>
-                                            <option value="RATING_DESC">評分</option>
-                                            <option value="PRICE_ASC">價格</option>
-                                            <option value="NAME_ASC">名稱</option>
-                                        </select>
-                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
-                                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                                            </svg>
+                                        </button>
+                                        <div className="relative flex-1">
+                                            <input 
+                                                type="text" 
+                                                autoFocus
+                                                className="w-full bg-white border-none rounded-full shadow-inner py-2 pl-4 pr-10 text-sm focus:ring-2 focus:ring-primary-500 placeholder-slate-400 text-slate-700" 
+                                                placeholder="搜尋景點、標籤..." 
+                                                value={searchQuery} 
+                                                onChange={(e) => setSearchQuery(e.target.value)} 
+                                            />
+                                            {searchQuery && (
+                                                <button 
+                                                    onClick={() => setSearchQuery('')}
+                                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                                    </svg>
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
-                                </div>
+                                ) : (
+                                    <div className="flex items-center gap-2.5 py-2 overflow-x-auto hide-scrollbar scroll-smooth">
+                                        {/* Search Trigger */}
+                                        <button 
+                                            onClick={() => setIsMobileSearchExpanded(true)} 
+                                            className={`shrink-0 p-2 rounded-full border shadow-sm transition-all ${searchQuery ? 'bg-primary-500 border-primary-500 text-white shadow-primary-500/30' : 'bg-white border-slate-200 text-slate-500'}`}
+                                            title="搜尋"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
+                                        </button>
 
-                                {/* Row 2: Combined Carousel (View Mode + Filters) */}
-                                <div className="flex items-center gap-3 overflow-x-auto hide-scrollbar pb-1">
-                                    {/* View Mode Switcher */}
-                                    <div className="flex bg-white rounded-lg p-1 shadow-sm border border-slate-100 shrink-0">
-                                        <button onClick={() => setViewMode('CATEGORY')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all whitespace-nowrap ${viewMode === 'CATEGORY' ? 'bg-primary-50 text-primary-700 shadow-sm' : 'text-slate-500'}`}>主題</button>
-                                        <button onClick={() => setViewMode('LOCATION')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all whitespace-nowrap ${viewMode === 'LOCATION' ? 'bg-primary-50 text-primary-700 shadow-sm' : 'text-slate-500'}`}>地區</button>
+                                        <div className="w-px h-6 bg-slate-300 shrink-0 opacity-50"></div>
+
+                                        {/* Sort Select */}
+                                        <div className="relative shrink-0">
+                                            <select 
+                                                value={sortBy} 
+                                                onChange={(e) => setSortBy(e.target.value as any)} 
+                                                className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
+                                            >
+                                                <option value="DEFAULT">推薦</option>
+                                                <option value="RATING_DESC">評分最高</option>
+                                                <option value="PRICE_ASC">價格最低</option>
+                                                <option value="NAME_ASC">名稱排序</option>
+                                            </select>
+                                            <button className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border shadow-sm transition-colors whitespace-nowrap ${sortBy !== 'DEFAULT' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200'}`}>
+                                                <span>
+                                                    {sortBy === 'DEFAULT' && '排序'}
+                                                    {sortBy === 'RATING_DESC' && '評分'}
+                                                    {sortBy === 'PRICE_ASC' && '價格'}
+                                                    {sortBy === 'NAME_ASC' && '名稱'}
+                                                </span>
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 opacity-70" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                </svg>
+                                            </button>
+                                        </div>
+
+                                        {/* View Mode Toggle */}
+                                        <div className="flex bg-slate-100 rounded-full p-0.5 shrink-0">
+                                            <button onClick={() => setViewMode('CATEGORY')} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${viewMode === 'CATEGORY' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>主題</button>
+                                            <button onClick={() => setViewMode('LOCATION')} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${viewMode === 'LOCATION' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>地區</button>
+                                        </div>
+
+                                        {/* Chips */}
+                                        {viewMode === 'CATEGORY' ? (
+                                            <>
+                                                <button onClick={() => setActiveCategory('ALL')} className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border shadow-sm shrink-0 ${activeCategory === 'ALL' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-slate-600 border-slate-200'}`}>全部</button>
+                                                {Object.values(CategoryType).map(cat => (
+                                                    <button key={cat} onClick={() => setActiveCategory(activeCategory === cat ? 'ALL' : cat)} className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border shadow-sm shrink-0 ${activeCategory === cat ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-slate-600 border-slate-200'}`}>{categoryLabels[cat]}</button>
+                                                ))}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <button onClick={() => { setActiveLocation('ALL'); setActiveDistrict('ALL'); }} className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border shadow-sm shrink-0 ${activeLocation === 'ALL' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-slate-600 border-slate-200'}`}>全部</button>
+                                                {uniqueCities.map(city => (
+                                                    <button key={city} onClick={() => { setActiveLocation(city); setActiveDistrict('ALL'); }} className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border shadow-sm shrink-0 ${activeLocation === city ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-slate-600 border-slate-200'}`}>{city}</button>
+                                                ))}
+                                            </>
+                                        )}
                                     </div>
-
-                                    <div className="w-px h-5 bg-slate-300 shrink-0"></div>
-
-                                    {/* Dynamic Chips */}
-                                    {viewMode === 'CATEGORY' ? (
-                                        <>
-                                            <button onClick={() => setActiveCategory('ALL')} className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border shadow-sm shrink-0 ${activeCategory === 'ALL' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-slate-600 border-slate-200'}`}>全部</button>
-                                            {Object.values(CategoryType).map(cat => (
-                                                <button key={cat} onClick={() => setActiveCategory(activeCategory === cat ? 'ALL' : cat)} className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border shadow-sm shrink-0 ${activeCategory === cat ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-slate-600 border-slate-200'}`}>{categoryLabels[cat]}</button>
-                                            ))}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <button onClick={() => { setActiveLocation('ALL'); setActiveDistrict('ALL'); }} className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border shadow-sm shrink-0 ${activeLocation === 'ALL' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-slate-600 border-slate-200'}`}>全部地區</button>
-                                            {uniqueCities.map(city => (
-                                                <button key={city} onClick={() => { setActiveLocation(city); setActiveDistrict('ALL'); }} className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border shadow-sm shrink-0 ${activeLocation === city ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-slate-600 border-slate-200'}`}>{city}</button>
-                                            ))}
-                                        </>
-                                    )}
-                                </div>
+                                )}
                             </div>
 
                             {/* Responsive Grid */}
@@ -500,7 +534,7 @@ const App: React.FC = () => {
                                                         <div className="h-px bg-slate-200 flex-grow"></div>
                                                         <span className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-xs font-bold">{groupedPlaces.groups[key].length}</span>
                                                     </div>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
+                                                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4 sm:gap-6">
                                                         {groupedPlaces.groups[key].map(place => (
                                                             <PlaceCard key={place.id} id={`card-${place.id}`} place={place} onDelete={handleRemovePlace} isSelected={selectedPlaceId === place.id} isHovered={hoveredPlaceId === place.id} onHover={setHoveredPlaceId} onClick={() => setSelectedPlaceId(place.id)} />
                                                         ))}
@@ -509,7 +543,7 @@ const App: React.FC = () => {
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
+                                        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4 sm:gap-6">
                                             {placesToShow.map((place) => (
                                                 <PlaceCard key={place.id} id={`card-${place.id}`} place={place} onDelete={handleRemovePlace} isSelected={selectedPlaceId === place.id} isHovered={hoveredPlaceId === place.id} onHover={setHoveredPlaceId} onClick={() => setSelectedPlaceId(place.id)} />
                                             ))}
